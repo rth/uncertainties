@@ -1548,15 +1548,25 @@ def format_num(nom_val_main, error_main, common_exp,
                 # Remaining (minimum) width after including the
                 # exponent:
                 remaining_width = max(width-len(exp_str), 0)
+
+                if nom_has_exp:
+                    remaining_width_m = remaining_width
+                else:
+                    remaining_width_m = width
                 
                 fmt_prefix_n = '%s%s%d%s' % (
                     fmt_parts['sign'], fmt_parts['zero'],
-                    remaining_width if nom_has_exp else width,
+                    remaining_width_m,
                     fmt_parts['comma'])
 
+                if error_has_exp:
+                    remaining_width_e = remaining_width
+                else:
+                    remaining_width_e = width
+                
                 fmt_prefix_e = '%s%d%s' % (
                     fmt_parts['zero'],
-                    remaining_width if error_has_exp else width,
+                    remaining_width_e,
                     fmt_parts['comma'])
                 
             else:
@@ -2208,7 +2218,10 @@ class AffineScalarFunc(object):
             #
             # prec is the precision for the main parts of the final
             # format (in the sense of float formatting):
-            prec = int(fmt_prec) if fmt_prec else 6
+            if fmt_prec:
+                prec = int(fmt_prec)
+            else:
+                prec = 6
 
             if fmt_type in 'fF':
 
@@ -2251,10 +2264,11 @@ class AffineScalarFunc(object):
 
                 ## print "NUM_SIGNIF_DIGITS", num_signif_digits
 
-                digits_limit = (
-                    signif_dgt_to_limit(exp_ref_value, num_signif_digits)
-                    if non_nan_values
-                    else None)
+                if non_nan_values:
+                    digits_limit = signif_dgt_to_limit(exp_ref_value,
+                                                       num_signif_digits)
+                else:
+                    digits_limit = None
 
                 ## print "DIGITS_LIMIT", digits_limit
                 

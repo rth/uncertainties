@@ -1411,7 +1411,10 @@ def format_num(nom_val_main, error_main, common_exp,
         # exponent is taken care of by common_exp, so it is
         # formatted without an exponent (otherwise, the exponent
         # would have to be handled for the LaTeX option):
-        fmt_suffix_n = (fmt_parts['prec'] or '')+fmt_parts['type']
+        fmt_suffix_n = (fmt_parts['prec'] or '')+(
+            # The empty format corresponds to the string %
+            # format:
+            fmt_parts['type'] or 's')
     else:
         fmt_suffix_n = '.%d%s' % (prec, main_fmt_type)
 
@@ -1619,7 +1622,10 @@ def format_num(nom_val_main, error_main, common_exp,
                 # Only some formats have a nicer representation:
                 and fmt_parts['type'] in ('', 'g', 'G')):
                 # The error can be formatted independently:
-                fmt_suffix_e = (fmt_parts['prec'] or '')+fmt_parts['type']
+                fmt_suffix_e = (fmt_parts['prec'] or '')+(
+                    # The empty format corresponds to the string %
+                    # format:
+                    fmt_parts['type'] or 's')
             else:
                 fmt_suffix_e = '.%d%s' % (prec, main_fmt_type)
         else:

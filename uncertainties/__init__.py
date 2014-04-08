@@ -327,16 +327,14 @@ def deprecation(message):
 
 ###############################################################################
 
-try:
-    isnan = math.isnan
-except AttributeError:  # Python < 2.6
-    def isnan(x):
-        '''
-        Similar to the math.isnan() of Python 2.6+.
-        '''
-        if not isinstance(x, float):
-            raise TypeError('a float is required')
-        return x != x
+# Python < 2.6 does not have math.isnan:
+def isnan(x):
+    '''
+    Similar to the math.isnan() of Python 2.6+.
+    '''
+    if not isinstance(x, float):
+        raise TypeError('a float is required')
+    return x != x
     
 ###############################################################################
 

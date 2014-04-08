@@ -156,12 +156,12 @@ Numbers with uncertainties can be printed conveniently:
 0.200+/-0.010
 
 The resulting form can generally be parsed back with
-:func:`ufloat_fromstr` (except for the LaTeχ form).
+:func:`ufloat_fromstr` (except for the LaTeX form).
 
 .. Precision matching:
 
 The nominal value and the uncertainty always have the **same
-precision**.
+precision**: this makes it easier to compare them.
 
 .. Formatting method:
 
@@ -185,7 +185,19 @@ type are all supported.
 
 .. Precision control:
 
-It is possible to control the **number of significant digits of the
+When :mod:`uncertainties` must **choose the number of significant
+digits on the uncertainty**, it is defined with the `Particle Data
+Group <http://PDG.lbl.gov/2010/reviews/rpp2010-rev-rpp-intro.pdf>`_
+rounding rules (these rules keep the number of digits small, while
+preventing the uncertainty from being displayed with a large relative
+error):
+
+>>> print 'Automatic number of digits on the uncertainty: {}'.format(x)
+Automatic number of digits on the uncertainty: 0.200+/-0.010
+>>> print x
+0.200+/-0.010
+
+It is possible to **control the number of significant digits of the
 uncertainty** by adding the precision modifier ``u`` after the
 precision (and before any valid float format type like ``f``, ``e``,
 the empty format type, etc.):
@@ -204,14 +216,6 @@ meaning (e.g. ``.2e`` uses two digits after the decimal point): code
 that works with floats produces similar results when running with
 numbers with uncertainties.
 
-When **no explicit precision** is given, the number of significant digits
-on the uncertainty is defined with the `Particle Data Group
-<http://PDG.lbl.gov/2010/reviews/rpp2010-rev-rpp-intro.pdf>`_ rounding
-rules (these rules keep the number of digits small, while preventing the
-uncertainty from being displayed with a large relative error):
-
->>> print 'Automatic number of digits on the uncertainty: {}'.format(x)
-Automatic number of digits on the uncertainty: 0.200+/-0.010
 
 .. Common exponent:
 
@@ -237,12 +241,12 @@ the common exponent.
 .. Options:
 
 Formatting options can be added at the end of the format string: ``S``
-for the **shorthand notation**, ``L`` for a **LaTeχ** output, ``P``
+for the **shorthand notation**, ``L`` for a **LaTeX** output, ``P``
 for **pretty-printing**:
 
 >>> print '{:+.1uS}'.format(x)  # Sign, 1 digit for the uncertainty, shorthand
 +0.20(1)
->>> print '{:L}'.format(x*1e7)  # Automatic exponent form, LaTeχ
+>>> print '{:L}'.format(x*1e7)  # Automatic exponent form, LaTeX
 \left(2.00 \pm 0.10\right) \times 10^{6}
 
 The pretty-printing mode uses "±" and superscript exponents: the
@@ -282,7 +286,7 @@ representation:
 1.23456789012345+/-0.123456789
 
 **More information** on formatting can be obtained with ``pydoc
-uncertainties.UFloat.__format__`` (customization of the LaTeχ output,
+uncertainties.UFloat.__format__`` (customization of the LaTeX output,
 etc.).
 
 Global formatting
@@ -315,8 +319,8 @@ prints with the shorthand notation: ``Result = 0.20(1)``.
 
 
 .. index::
-   pair: nominal value; of scalar
-   pair: uncertainty; of scalar
+   pair: nominal value; scalar
+   pair: uncertainty; scalar
 
 Access to the uncertainty and to the nominal value
 ==================================================

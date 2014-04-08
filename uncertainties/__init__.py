@@ -1107,7 +1107,8 @@ def first_digit(value):
     '''
     Returns the first digit position of the given value, as an integer.
 
-    0 is the digit just before the decimal point.
+    0 is the digit just before the decimal point. Digits to the right
+    of the decimal point have a negative position.
     
     Returns 0 for a null value.
     '''
@@ -1327,10 +1328,10 @@ def format_num(nom_val_main, error_main, common_exp,
     prec -- precision to use with the main_fmt_type format type
     (see below).
 
-    main_fmt_type -- format specification type, in "fF". This
-    defines how the mantissas, exponents and NaN values are
-    represented (in the same way as for float). Note that None, the
-    empty string, or "%" are not accepted.
+    main_fmt_type -- format specification type, in "fF". This defines
+    how the mantissas, exponents and NaN values are represented (in
+    the same way as for float). None, the empty string, or "%" are not
+    accepted.
 
     options -- options (as an object that support membership testing,
     like for instance a string). "S" is for the short-hand notation
@@ -1397,15 +1398,15 @@ def format_num(nom_val_main, error_main, common_exp,
         percent_str += '%'
 
     ####################
-        
+
     # Only true if the error should not have an exponent (has priority
     # over common_exp):
     special_error = not error_main or isnan(error_main)
 
-    # Nicer representation of the main part, with no trailing
+    # Nicer representation of the main nominal part, with no trailing
     # zeros, when the error does not have a defined number of
     # significant digits:
-    if special_error and (fmt_parts['type'] in 'gG' or not fmt_parts['type']):
+    if special_error and fmt_parts['type'] in ('', 'g', 'G'):
         # The main part is between 1 and 10 because any possible
         # exponent is taken care of by common_exp, so it is
         # formatted without an exponent (otherwise, the exponent
@@ -1515,23 +1516,28 @@ def format_num(nom_val_main, error_main, common_exp,
                 fmt_parts['width'])
             
     else:  # +/- notation:
+
+        # The common exponent is factored or not, depending on the
+        # width. This gives nice columns for the nominal values and
+        # the errors (no shift due to a varying exponent), when a need
+        # is given:
+        any_exp_factored = not fmt_parts['width']
         
-        # True when the error part has an exponent directly attached
+        # True when the error part has any exponent directly attached
         # (case of an individual exponent for both the nominal value
         # and the error, when the error is a non-0, non-NaN number).
-        # The goal is to avoid the strange notation NaNe-10, and to
+        # The goal is to avoid the strange notation nane-10, and to
         # avoid the 0e10 notation for an exactly zero uncertainty,
-        # because .0e can give this for a non-zero value (the goal is
-        # to have zero uncertainty be very explicit):
-        error_has_exp = fmt_parts['width'] and not special_error
+        # because .0e can give this for a non-zero error (the goal is
+        # to have a zero uncertainty be very explicit):
+        error_has_exp = not any_exp_factored and not special_error
+
+        # Like error_has_exp, but only for NaN handling (there is not
+        # special meaning to a zero nominal value):
+        nom_has_exp = not any_exp_factored and not isnan(nom_val_main)
         
         # Prefix for the parts:
         if fmt_parts['width']:  # Individual widths
-
-            # The exponent is not factored, so as to have nice columns
-            # for the nominal values and the errors (no shift due to a
-            # varying exponent):
-            any_exp_factored = False
 
             # If zeros are needed, then the width is taken into
             # account now (before the exponent is added):
@@ -1539,21 +1545,18 @@ def format_num(nom_val_main, error_main, common_exp,
                 
                 width = int(fmt_parts['width'])
 
-                # Remaining (minimum) width:
-                remaining_width = max(width - len(exp_str), 0)
+                # Remaining (minimum) width after including the
+                # exponent:
+                remaining_width = max(width-len(exp_str), 0)
                 
                 fmt_prefix_n = '%s%s%d%s' % (
                     fmt_parts['sign'], fmt_parts['zero'],
-                    remaining_width, fmt_parts['comma'])
+                    remaining_width if nom_has_exp else width,
+                    fmt_parts['comma'])
 
-                if error_has_exp:
-                    remaining_width_e = remaining_width
-                else:
-                    remaining_width_e = width
-                    
                 fmt_prefix_e = '%s%d%s' % (
                     fmt_parts['zero'],
-                    remaining_width_e,
+                    remaining_width if error_has_exp else width,
                     fmt_parts['comma'])
                 
             else:
@@ -1561,10 +1564,13 @@ def format_num(nom_val_main, error_main, common_exp,
                 fmt_prefix_e = fmt_parts['comma']
 
         else:  # Global width
-            any_exp_factored = True            
             fmt_prefix_n = fmt_parts['sign']+fmt_parts['comma']
             fmt_prefix_e = fmt_parts['comma']
-        
+
+        ## print "ANY_EXP_FACTORED", any_exp_factored
+        ## print "ERROR_HAS_EXP", error_has_exp
+        ## print "NOM_HAS_EXP", nom_has_exp
+            
         ####################
         # Nominal value formatting:
 
@@ -1581,30 +1587,41 @@ def format_num(nom_val_main, error_main, common_exp,
 
         # print "NOM_VAL_STR", nom_val_str
         
-        if not any_exp_factored:
+        if nom_has_exp:
             nom_val_str += exp_str
 
         ####################
         # Error formatting:
 
-        # Note: .0f applied to a float has no decimal point, but
+        # !! Note: .0f applied to a float has no decimal point, but
         # this does not appear to be documented
         # (http://docs.python.org/2/library/string.html#format-specification-mini-language). This
-        # feature is used anyway, because it allows a possible
-        # comma format parameter to be handled more conveniently
-        # than if the 'd' format was used.
+        # feature is used anyway, because it allows a possible comma
+        # format parameter to be handled more conveniently than if the
+        # 'd' format was used.
         #
         # The following uses a special integer representation of a
         # zero uncertainty:
         if error_main:
-            fmt_suffix_e = '.%d%s' % (prec, main_fmt_type)
+            # The handling of NaN in the nominal value identical to
+            # the handling of NaN in the standard deviation:
+            if (isnan(nom_val_main)
+                # Only some formats have a nicer representation:
+                and fmt_parts['type'] in ('', 'g', 'G')):
+                # The error can be formatted independently:
+                fmt_suffix_e = (fmt_parts['prec'] or '')+fmt_parts['type']
+            else:
+                fmt_suffix_e = '.%d%s' % (prec, main_fmt_type)
         else:
             fmt_suffix_e = '.0%s' % main_fmt_type
         
         error_str = robust_format(error_main, fmt_prefix_e+fmt_suffix_e)
 
-        if 'L' in options and isnan(error_main):
-            error_str = '\mathrm{%s}' % error_str
+        if 'L' in options:
+            if isnan(nom_val_main):
+                nom_val_str = '\mathrm{%s}' % nom_val_str            
+            if isnan(error_main):
+                error_str = '\mathrm{%s}' % error_str
             
         if error_has_exp:
             error_str += exp_str
@@ -1665,7 +1682,7 @@ def format_num(nom_val_main, error_main, common_exp,
     
     return value_str
 
-def signif_d_to_limit(value, num_signif_d):
+def signif_dgt_to_limit(value, num_signif_d):
     '''
     Returns the precision limit necessary to display value with
     num_signif_d significant digits.
@@ -2087,21 +2104,6 @@ class AffineScalarFunc(object):
         std_dev = self.std_dev
         nom_val = self.nominal_value
 
-        # Should the precision be interpreted like for a float, or
-        # should the number of significant digits on the uncertainty
-        # be controlled?        
-        uncert_controlled = (
-            (not fmt_prec  # Default behavior: uncertainty controlled
-             or match.group('uncert_prec'))  # Explicit control
-            # The number of significant digits of the uncertainty must
-            # be meaningful, otherwise the position of the significant
-            # digits of the uncertainty do not have a clear
-            # meaning. This gives us the *effective* uncertainty
-            # control mode:
-            and std_dev and not isnan(std_dev))
-
-        # print "UNCERT CONTROLLED", uncert_controlled
-        
         # 'options' is the options that must be given to format_num():
         options = set(match.group('options'))
 
@@ -2126,16 +2128,48 @@ class AffineScalarFunc(object):
             
         ########################################
 
-        # Calculation of digits_limit, which defines the precision of
-        # the nominal value and of the standard deviation:
+        # NaN values (nominal value or standard deviation) must be
+        # handled in a specific way:
+        non_nan_values = [value for value in (abs(nom_val), std_dev)
+                          if not isnan(value)]
         
+        # Calculation of digits_limit, which defines the precision of
+        # the nominal value and of the standard deviation (it can be
+        # None when it does not matter, like for NaN±NaN):
+
         # Reference value for the calculation of a possible exponent,
         # if needed:
         if fmt_type in 'eEgG':
-            # Reference value for the exponent
-            exp_ref_value = max(abs(nom_val), std_dev)
-        
-        if uncert_controlled:
+            # Reference value for the exponent: the largest value
+            # defines what the exponent will be (another convention
+            # could have been chosen, like using the exponent of the
+            # nominal value, irrespective of the standard deviation):
+            try:
+                exp_ref_value = max(non_nan_values)                
+            except ValueError:  # No non-NaN value: NaN±NaN…
+                # No meaningful common exponent can be obtained:
+                pass
+            ## else:
+            ##     print "EXP_REF_VAL", exp_ref_value
+            
+        # Should the precision be interpreted like for a float, or
+        # should the number of significant digits on the uncertainty
+        # be controlled?
+        if ((
+            # Default behavior: number of significant digits on the
+            # uncertainty controlled (if useful, i.e. only in
+            # situations where the nominal value and the standard
+            # error digits are truncated at the same place):
+            (not fmt_prec and len(non_nan_values)==2)
+            or match.group('uncert_prec'))  # Explicit control
+            # The number of significant digits of the uncertainty must
+            # be meaningful, otherwise the position of the significant
+            # digits of the uncertainty does not have a clear
+            # meaning. This gives us the *effective* uncertainty
+            # control mode:
+            and std_dev
+            and not isnan(std_dev)):
+            
             # The number of significant digits on the uncertainty is
             # controlled.
 
@@ -2156,21 +2190,25 @@ class AffineScalarFunc(object):
             else:
                 (num_signif_d, std_dev) = PDG_precision(std_dev)
 
-            digits_limit = signif_d_to_limit(std_dev, num_signif_d)
+            digits_limit = signif_dgt_to_limit(std_dev, num_signif_d)
 
         else:
 
+            # No control of the number of significant digits on the
+            # uncertainty.
+
+            ## print "PRECISION NOT BASED ON UNCERTAINTY"
+            
             # The precision has the same meaning as for floats (it is
             # not the uncertainty that defines the number of digits).
 
             # The usual default precision is used (this is useful for
             # 3.141592±NaN with an "f" format specification, for
             # example):
-
-            if fmt_prec:
-                prec = int(fmt_prec)
-            else:
-                prec = 6
+            #
+            # prec is the precision for the main parts of the final
+            # format (in the sense of float formatting):
+            prec = int(fmt_prec) if fmt_prec else 6
 
             if fmt_type in 'fF':
 
@@ -2178,7 +2216,7 @@ class AffineScalarFunc(object):
                 
             else:  # Format type in eEgG
 
-                # We calculate first the number of significant digits
+                # We first calculate the number of significant digits
                 # to be displayed (if possible):
                 
                 if fmt_type in 'eE':
@@ -2189,7 +2227,7 @@ class AffineScalarFunc(object):
                     # the e/E format type):
                     num_signif_digits = prec+1
 
-                else:  # Format type in gGn
+                else:  # Format type in gG
                     
                     # Effective format specification precision: the rule
                     # of
@@ -2202,20 +2240,23 @@ class AffineScalarFunc(object):
                     # num_signif_digits is the number of significant
                     # digits if trailing zeros were not removed. This
                     # quantity is relevant for the rounding implied by
-                    # the exponent test of the g/G/n format:
+                    # the exponent test of the g/G format:
 
                     # 0 is interpreted like 1 (as with floats with a
                     # gG format type):
                     num_signif_digits = prec or 1
 
-                
                 # The number of significant digits is important for
                 # example for determining the exponent:
-                digits_limit = signif_d_to_limit(exp_ref_value,
-                                                 num_signif_digits)
 
-                # print "EXP_REF_VAL", exp_ref_value
-                # print "NUM_SIGNIF_DIGITS", num_signif_digits
+                ## print "NUM_SIGNIF_DIGITS", num_signif_digits
+
+                digits_limit = (
+                    signif_dgt_to_limit(exp_ref_value, num_signif_digits)
+                    if non_nan_values
+                    else None)
+
+                ## print "DIGITS_LIMIT", digits_limit
                 
         #######################################
 
@@ -2227,11 +2268,16 @@ class AffineScalarFunc(object):
         if fmt_type in 'fF':
             use_exp = False
         elif fmt_type in 'eE':
-            use_exp = True
-            # !! This calculation might have been already done, for
-            # instance when using the .0e format: signif_d_to_limit()
-            # was called before, which prompted a similar calculation:
-            common_exp = first_digit(round(exp_ref_value, -digits_limit))
+            if not non_nan_values:
+                use_exp = False
+            else:                
+                use_exp = True
+                # !! This calculation might have been already done,
+                # for instance when using the .0e format:
+                # signif_dgt_to_limit() was called before, which
+                # prompted a similar calculation:
+                common_exp = first_digit(round(exp_ref_value, -digits_limit))
+            
         else:  # g, G
 
             # The rules from
@@ -2253,39 +2299,43 @@ class AffineScalarFunc(object):
             # Should the scientific notation be used? The same rule as
             # for floats is used ("-4 <= exponent of rounded value <
             # p"), on the nominal value.
-            
-            common_exp = first_digit(round(exp_ref_value, -digits_limit))
 
-            # print "COMMON EXP TEST VALUE", common_exp
-            # print "LIMIT EXP", common_exp-digits_limit+1
-            # print "WITH digits_limit", digits_limit
-            
-            # The number of significant digits of the reference value
-            # rounded at digits_limit is exponent-digits_limit+1:
-            if -4 <= common_exp < common_exp-digits_limit+1:
+            if not non_nan_values:
                 use_exp = False
             else:
-                use_exp = True
+                # Common exponent *if* used:
+                common_exp = first_digit(round(exp_ref_value, -digits_limit))
+
+                # print "COMMON EXP TEST VALUE", common_exp
+                # print "LIMIT EXP", common_exp-digits_limit+1
+                # print "WITH digits_limit", digits_limit
+
+                # The number of significant digits of the reference value
+                # rounded at digits_limit is exponent-digits_limit+1:
+                if -4 <= common_exp < common_exp-digits_limit+1:
+                    use_exp = False
+                else:
+                    use_exp = True
 
         ########################################
 
         # Calculation of signif_limit (position of the significant
         # digits limit in the final fixed point representations; this
-        # number is non-positive), of nom_val_mantissa ("mantissa" for
-        # the nominal value, i.e. value possibly corrected for a
-        # factorized exponent), and std_dev_mantissa (similarly for
-        # the standard deviation). common_exp is also set to None if no
-        # common exponent should be used.
+        # is either a non-positive number, or None), of
+        # nom_val_mantissa ("mantissa" for the nominal value,
+        # i.e. value possibly corrected for a factorized exponent),
+        # and std_dev_mantissa (similarly for the standard
+        # deviation). common_exp is also set to None if no common
+        # exponent should be used.
         
         if use_exp:
 
-            factor = 10.**common_exp  # Not 10.**(-common_exp), for limit cases
+            # Not 10.**(-common_exp), for limit values of common_exp:
+            factor = 10.**common_exp
             
             nom_val_mantissa = nom_val/factor
             std_dev_mantissa = std_dev/factor
-            # Limit for the last digit of the mantissas (it should be
-            # non-positive, as digits before the final decimal points
-            # are always returned in full):
+            # Limit for the last digit of the mantissas:
             signif_limit = digits_limit - common_exp
 
         else:  # No common exponent
@@ -2296,21 +2346,43 @@ class AffineScalarFunc(object):
             std_dev_mantissa = std_dev
             signif_limit = digits_limit
 
+        ## print "SIGNIF_LIMIT", signif_limit
+            
         ########################################
 
         # Format of the main (i.e. with no exponent) parts:
         main_fmt_type = 'fF'[fmt_type.isupper()]
 
-        # prec is the precision for the main parts of the final format:
-        if std_dev and not isnan(std_dev):
+        # The precision of the main parts must be adjusted so as
+        # to take into account the special role of the decimal
+        # point:
+        if signif_limit is not None:  # If signif_limit is pertinent
             # The decimal point location is always included in the
             # printed digits (e.g., printing 3456 with only 2
             # significant digits requires to print at least four
-            # digits, like in 3456 or 3500):
+            # digits, like in 3456 or 3500).
+            # 
+            # The max() is important for example for
+            # 1234567.89123+/-12345.678 with the f format: in this
+            # case, signif_limit is +3 (2 significant digits necessary
+            # for the error, as per the PDG rules), but the (Python
+            # float formatting) precision to be used for the main
+            # parts is 0 (all digits must be shown):
             prec = max(-signif_limit, 0)
-        # 'prec' was defined above, for the other case
-
+        ## print "PREC", prec
+            
         ########################################
+
+        ## print (
+        ##     "FORMAT_NUM parameters: nom_val_mantissa={},"
+        ##     " std_dev_mantissa={}, common_exp={},"
+        ##     " match.groupdict()={}, prec={}, main_fmt_type={},"
+        ##     " options={}".format(
+        ##     nom_val_mantissa, std_dev_mantissa, common_exp, 
+        ##     match.groupdict(),
+        ##     prec,
+        ##     main_fmt_type,
+        ##     options))
 
         # Final formatting:
         return format_num(nom_val_mantissa, std_dev_mantissa, common_exp, 

@@ -337,7 +337,10 @@ def test_ufloat_fromstr():
         
         # NaN uncertainty:
         u'(3.141±nan)E+02': (314.1, float('nan')),
+        '3.141e+02+/-nan': (314.1, float('nan')),
         '3.4(nan)e10': (3.4e10, float('nan')),
+        # NaN value:
+        'nan+/-3.14e2': (float('nan'), 314),
         # "Double-floats"
         '(-3.1415 +/- 1e-4)e+200': (-3.1415e200, 1e196),
         '(-3.1415e-10 +/- 1e-4)e+200': (-3.1415e190, 1e196),
@@ -1569,9 +1572,9 @@ def python26_add(dict0, dict1):
 def test_format():
     '''Test the formatting of numbers with uncertainty.'''
 
-    # The way NaN is formatted with F and E depends on the version of
-    # Python (NAN for Python 2.7+):
-    NaN_EF = '%F' % float('nan')
+    # The way NaN is formatted with F, E and G depends on the version
+    # of Python (NAN for Python 2.7+):
+    NaN_EFG = '%F' % float('nan')
     
     # Tests of each point of the docstring of
     # AffineScalarFunc.__format__() in turn, mostly in the same order.
@@ -1766,8 +1769,8 @@ def test_format():
         # instead of 1.4 for Python 3.1. The problem does not appear
         # with 1.2, so 1.2 is used.        
         (-1.2e-12, float('nan')): python26_add({
-            '.2uG': '(-1.2+/-%s)E-12' % NaN_EF,  # u ignored, format used
-            '15GS': '  -1.2(%s)E-12' % NaN_EF
+            '.2uG': '(-1.2+/-%s)E-12' % NaN_EFG,  # u ignored, format used
+            '15GS': '  -1.2(%s)E-12' % NaN_EFG
         }, {
             'SL': r'-1.2(\mathrm{nan}) \times 10^{-12}',  # LaTeX NaN
             # Pretty-print priority, but not for NaN:
@@ -1775,7 +1778,7 @@ def test_format():
             'L': r'\left(-1.2 \pm \mathrm{nan}\right) \times 10^{-12}',
             # Uppercase NaN and LaTeX:
             '.1EL': (r'\left(-1.2 \pm \mathrm{%s}\right) \times 10^{-12}'
-                     % NaN_EF),
+                     % NaN_EFG),
             '10': '  -1.2e-12+/-       nan',
             '15S': '  -1.2(nan)e-12'
         }),
@@ -1792,7 +1795,7 @@ def test_format():
         # Some special cases:
         (1, float('nan')): python26_add({
             'g': '1+/-nan',
-            'G': '1+/-%s' % NaN_EF,
+            'G': '1+/-%s' % NaN_EFG,
             '%': '(100.000000+/-nan)%',  # The % format type is like f
             # Should be the same as '+05', for floats, but is not, in
             # Python 2.7:
@@ -1810,7 +1813,7 @@ def test_format():
             # and '{:g}'.format(1.234567890123456789) are different).
             '': '1.0+/-nan',
             # This is ugly, but consistent with
-            # '{:+05}'.format(float('nan')) and format(1.) [which
+            # '{:+05}'.format(float('nan')) and format(1.) (which
             # differs from format(1)!):
             '+05': '+01.0+/-00nan'            
             }),
@@ -1828,7 +1831,7 @@ def test_format():
         # 0 uncertainty: nominal value displayed like a float:
         (1.2345, 0): python26_add({
             '.2ue': '(1.23+/-0)e+00',
-            '1.2ue': '1.23e+00+/-0',
+            '1.2ue': '1.23e+00+/-0',  # No factored exponent
             '.2uf': '1.23+/-0',
             '.2ufS': '1.23(0)',
             '.2fS': '1.23(0)',
@@ -1895,7 +1898,41 @@ def test_format():
             '13.6g': '  1.20000e-34+/-  0.00000e-34',
             '13.6G': '  1.20000E-34+/-  0.00000E-34',
             '.6GL': r'\left(1.20000 \pm 0.00000\right) \times 10^{-34}'
+        },
+        (float('nan'), 100): {  # NaN *nominal value*
+            '': 'nan+/-100.0',  # Like '{}'.format(100.)
+            'g': 'nan+/-100',  # Like '{:g}'.format(100.)
+            '.1e': '(nan+/-1.0)e+02',  # Similar to 1±nan
+            '.1E': '(%s+/-1.0)E+02' % NaN_EFG,
+            '.1ue': '(nan+/-1)e+02',
+            '10.1e': '       nan+/-   1.0e+02'
+        },
+        (float('nan'), 1e8): {  # NaN *nominal value*
+            '': '(nan+/-1.0)e+08',  # Like '{}'.format(1.)
+            'g': '(nan+/-1)e+08',  # Like '{:g}'.format(1.)
+            '.1e': '(nan+/-1.0)e+08',
+            '.1E': '(%s+/-1.0)E+08' % NaN_EFG,
+            '.1ue': '(nan+/-1)e+08',
+            '10.1e': '       nan+/-   1.0e+08'  # 'nane+08' would be strange
+        },                
+        (float('nan'), 123456789): {  # NaN *nominal value*
+            '': '(nan+/-1.23456789)e+08',  # Similar to '{}'.format(123456789.)
+            'g': '(nan+/-1.23457)e+08',  # Similar to '{:g}'.format(123456789.)
+            '.1e': '(nan+/-1.2)e+08',
+            '.1E': '(%s+/-1.2)E+08' % NaN_EFG,
+            '.1ue': '(nan+/-1)e+08',
+            '.1ueL': r'\left(\mathrm{nan} \pm 1\right) \times 10^{8}',
+            '10.1e': '       nan+/-   1.2e+08',
+            '10.1eL': r'\mathrm{nan} \pm 1.2 \times 10^{8}'
+        },        
+        (float('nan'), float('nan')): {  # *Double* NaN
+            '': 'nan+/-nan',
+            '.1e': 'nan+/-nan',
+            '.1E': '%s+/-%s' % (NaN_EFG, NaN_EFG),
+            '.1ue': 'nan+/-nan',
+            'EL': r'\mathrm{%s} \pm \mathrm{%s}' % (NaN_EFG, NaN_EFG)
         }
+        
     }
 
     # ',' format option: introduced in Python 2.7
@@ -1924,7 +1961,7 @@ def test_format():
 
         for (format_spec, result) in representations.iteritems():
 
-            # print "FORMATTING", repr(value), "WITH", format_spec
+            ## print "FORMATTING {} WITH '{}'".format(repr(value), format_spec)
             
             # Jython 2.5.2 does not always represent NaN as nan or NAN
             # in the CPython way: for example, '%.2g' % float('nan')

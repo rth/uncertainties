@@ -1554,15 +1554,6 @@ def test_repr():
     x = ufloat(3, 1, "length")
     assert repr(x) == '< length = 3.0+/-1.0 >'
 
-def python26_add(dict0, dict1):
-    '''
-    If Python 2.6+ is running, Updates dict0 with dict1 and returns the
-    updated dict0.
-    '''
-    if sys.version_info >= (2, 6):
-        dict0.update(dict1)
-    return dict0
-    
 def test_format():
     '''Test the formatting of numbers with uncertainty.'''
 
@@ -1589,15 +1580,10 @@ def test_format():
         },
         
         # Full generalization of float formatting:
-        (3.1415, 0.0001): python26_add({
+        (3.1415, 0.0001): {
             '+09.2uf': '+03.14150+/-000.00010'
-        }, {
-            # Alignment is not available with the % formatting
-            # operator of Python < 2.6:
-            '*^+9.2uf': '+3.14150*+/-*0.00010*',
-            '>9f': '  3.14150+/-  0.00010'  # Width and align
-        }),
-
+        },
+        
         # Number of digits of the uncertainty fixed:
         (123.456789, 0.00123): {
             '.1uf': '123.457+/-0.001',
@@ -1744,28 +1730,17 @@ def test_format():
         # Python 3.2 and 3.3 give 1.4e-12*1e+12 = 1.4000000000000001
         # instead of 1.4 for Python 3.1. The problem does not appear
         # with 1.2, so 1.2 is used.
-        (-1.2e-12, 0): python26_add({
+        (-1.2e-12, 0): {
             '12.2gPL': ur'  -1.2×10⁻¹²±           0'
-        }, {
-            # Pure "width" formats are not accepted by the % operator,
-            # and only %-compatible formats are accepted, for Python <
-            # 2.6:
-            '13S': '  -1.2(0)e-12',
-            '10P': u'-1.2×10⁻¹²±         0',
-            'L': r'\left(-1.2 \pm 0\right) \times 10^{-12}',
-            # No factored exponent, LaTeX
-            '1L': r'-1.2 \times 10^{-12} \pm 0',
-            'SL': r'-1.2(0) \times 10^{-12}',
-            'SP': ur'-1.2(0)×10⁻¹²'
-        }),
+        },
 
         # Python 3.2 and 3.3 give 1.4e-12*1e+12 = 1.4000000000000001
         # instead of 1.4 for Python 3.1. The problem does not appear
         # with 1.2, so 1.2 is used.        
-        (-1.2e-12, float('nan')): python26_add({
+        (-1.2e-12, float('nan')): {
             '.2uG': '(-1.2+/-%s)E-12' % NaN_EFG,  # u ignored, format used
             '15GS': '  -1.2(%s)E-12' % NaN_EFG
-        }, {
+            #!!!!!!!!!!! passes tests?
             'SL': r'-1.2(\mathrm{nan}) \times 10^{-12}',  # LaTeX NaN
             # Pretty-print priority, but not for NaN:
             'PSL': u'-1.2(\mathrm{nan})×10⁻¹²',
@@ -1775,7 +1750,7 @@ def test_format():
                      % NaN_EFG),
             '10': '  -1.2e-12+/-       nan',
             '15S': '  -1.2(nan)e-12'
-        }),
+        },
 
         (3.14e-10, 0.01e-10): {
             # Character (Unicode) strings:
@@ -1787,7 +1762,7 @@ def test_format():
         },
     
         # Some special cases:
-        (1, float('nan')): python26_add({
+        (1, float('nan')): {
             'g': '1+/-nan',
             'G': '1+/-%s' % NaN_EFG,
             '%': '(100.000000+/-nan)%',  # The % format type is like f
@@ -1797,52 +1772,29 @@ def test_format():
             # 5 is the *minimal* width, 6 is the default number of
             # digits after the decimal point:
             '+05%': '(+100.000000+/-00nan)%'
-        }, {
-            # There is a difference between '{}'.format(1.) and
-            # '{:g}'.format(1.), which is not fully obvious in the
-            # documentation, which indicates that a None format type
-            # is like g. The reason is that the empty format string is
-            # actually interpreted as str(), and that str() does not
-            # have to behave like g ('{}'.format(1.234567890123456789)
-            # and '{:g}'.format(1.234567890123456789) are different).
-            '': '1.0+/-nan',
-            # This is ugly, but consistent with
-            # '{:+05}'.format(float('nan')) and format(1.) (which
-            # differs from format(1)!):
-            '+05': '+01.0+/-00nan'            
-            }),
+        },
         
         (9.9, 0.1): {
             '.1ue': '(9.9+/-0.1)e+00',
             '.0fS': '10(0.)'
         },
+        
         (9.99, 0.1): {
              # The precision has an effect on the exponent, like for
              # floats:
             '.2ue': '(9.99+/-0.10)e+00',  # Same exponent as for 9.99 alone
             '.1ue': '(1.00+/-0.01)e+01'  # Same exponent as for 9.99 alone
         },
+        
         # 0 uncertainty: nominal value displayed like a float:
-        (1.2345, 0): python26_add({
+        (1.2345, 0): {
             '.2ue': '(1.23+/-0)e+00',
             '1.2ue': '1.23e+00+/-0',  # No factored exponent
             '.2uf': '1.23+/-0',
             '.2ufS': '1.23(0)',
             '.2fS': '1.23(0)',
             'g': '1.2345+/-0'
-        }, {
-            '': '1.2345+/-0'
-        }),
-
-        # Alignment and filling characters:
-        (3.1415e10, 0): python26_add(
-        {}, {
-            '<15': '3.1415e+10     +/-0              ',
-            '<20S': '3.1415(0)e+10       ',
-            # Trying to trip the format parsing with a fill character
-            # which is an alignment character:
-            '=>15': '=====3.1415e+10+/-==============0'
-        }),
+        },
         
         (1234.56789, 0): {
             '1.2ue': '1.23e+03+/-0',  # u ignored

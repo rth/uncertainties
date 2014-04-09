@@ -1732,6 +1732,9 @@ def test_format():
         # with 1.2, so 1.2 is used.
         (-1.2e-12, 0): {
             '12.2gPL': ur'  -1.2×10⁻¹²±           0',
+            '13S': '  -1.2(0)e-12',
+            '10P': u'-1.2×10⁻¹²±         0',
+            'L': r'\left(-1.2 \pm 0\right) \times 10^{-12}',            
             # No factored exponent, LaTeX
             '1L': r'-1.2 \times 10^{-12} \pm 0',
             'SL': r'-1.2(0) \times 10^{-12}',

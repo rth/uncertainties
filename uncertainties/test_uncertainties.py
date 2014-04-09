@@ -190,10 +190,7 @@ def compare_derivatives(func, numerical_derivatives,
                                               num_deriv_value, 1e-4):
 
                             # It is possible that the result is NaN:
-
-                            # ! Python 2.6+: this would be
-                            # not math.isnan(func_approx):
-                            if func_approx == func_approx:
+                            if isnan(func_approx):
                                 raise DerivativesDiffer(
                                     "Derivative #%d of function '%s' may be"
                                     " wrong: at args = %s,"
@@ -1464,10 +1461,7 @@ def power_special_cases(op):
     assert op(zero, p) == 0
 
     # The outcome of 1**nan and nan**0 was undefined before Python
-    # 2.6 (http://docs.python.org/library/math.html#math.pow):
-    if sys.version_info >= (2, 6):
-        assert op(float('nan'), zero) == 1.0
-        assert op(one, float('nan')) == 1.0
+    # 2.6 (http://docs.python.org/library/math.html#math.pow).
         
     # …**0 == 1.0:
     assert op(p, 0) == 1.0        

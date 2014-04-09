@@ -1739,8 +1739,7 @@ def test_format():
         # with 1.2, so 1.2 is used.        
         (-1.2e-12, float('nan')): {
             '.2uG': '(-1.2+/-%s)E-12' % NaN_EFG,  # u ignored, format used
-            '15GS': '  -1.2(%s)E-12' % NaN_EFG
-            #!!!!!!!!!!! passes tests?
+            '15GS': '  -1.2(%s)E-12' % NaN_EFG,
             'SL': r'-1.2(\mathrm{nan}) \times 10^{-12}',  # LaTeX NaN
             # Pretty-print priority, but not for NaN:
             'PSL': u'-1.2(\mathrm{nan})×10⁻¹²',

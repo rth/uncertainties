@@ -1731,7 +1731,11 @@ def test_format():
         # instead of 1.4 for Python 3.1. The problem does not appear
         # with 1.2, so 1.2 is used.
         (-1.2e-12, 0): {
-            '12.2gPL': ur'  -1.2×10⁻¹²±           0'
+            '12.2gPL': ur'  -1.2×10⁻¹²±           0',
+            # No factored exponent, LaTeX
+            '1L': r'-1.2 \times 10^{-12} \pm 0',
+            'SL': r'-1.2(0) \times 10^{-12}',
+            'SP': ur'-1.2(0)×10⁻¹²'
         },
 
         # Python 3.2 and 3.3 give 1.4e-12*1e+12 = 1.4000000000000001

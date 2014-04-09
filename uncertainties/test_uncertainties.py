@@ -1774,7 +1774,15 @@ def test_format():
             '+05g': '+0001+/-00nan',
             # 5 is the *minimal* width, 6 is the default number of
             # digits after the decimal point:
-            '+05%': '(+100.000000+/-00nan)%'
+            '+05%': '(+100.000000+/-00nan)%',
+            # There is a difference between '{}'.format(1.) and
+            # '{:g}'.format(1.), which is not fully obvious in the
+            # documentation, which indicates that a None format type
+            # is like g. The reason is that the empty format string is
+            # actually interpreted as str(), and that str() does not
+            # have to behave like g ('{}'.format(1.234567890123456789)
+            # and '{:g}'.format(1.234567890123456789) are different).
+            '': '1.0+/-nan'            
         },
         
         (9.9, 0.1): {

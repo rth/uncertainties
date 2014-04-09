@@ -501,11 +501,7 @@ def pinv_with_derivatives(arr, input_type, derivatives, rcond):
         yield term1+term2+term3
 
 # Default rcond argument for the generalization of numpy.linalg.pinv:
-try:
-    # Python 2.6+:
-    pinv_default = numpy.linalg.pinv.__defaults__[0]
-except AttributeError:
-    pinv_default = 1e-15
+pinv_default = 1e-15
 
 pinv_with_uncert = func_with_deriv_to_uncert_func(pinv_with_derivatives)
 

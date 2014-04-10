@@ -285,7 +285,7 @@ representation:
 1.23+/-0.12
 >>> print repr(y)
 1.23456789012345+/-0.123456789
->>> y
+>>> y  # Equivalent to print repr(y)
 1.23456789012345+/-0.123456789
 
 **More information** on formatting can be obtained with ``pydoc

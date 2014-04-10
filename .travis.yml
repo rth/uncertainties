@@ -1,0 +1,42 @@
+# Config file for automatic testing at travis-ci.org
+
+language: python
+
+python:
+    # Travis does not have Python 2.4 and 2.5:
+    # - 2.4
+    # - 2.5
+    - 2.6
+    - 2.7
+    - 3.2
+    - 3.3
+    # Travis does not yet have Python 3.4:
+    # - 3.4
+
+matrix:
+
+env:
+
+# !!! Is wheel necessary?
+
+# command to install dependencies
+before_install:
+    # Install the pip that supports wheel
+    - pip install setuptools --upgrade
+    - pip install pip --upgrade
+    - pip install wheel --upgrade
+    
+    #- sudo apt-get install python-numpy cython libatlas-dev liblapack-dev gfortran
+    - sudo apt-get update
+
+# !!! Is astropy/wheel necessary??
+install:    
+    - pip install --find-links http://wheels2.astropy.org/ --use-wheel --use-mirrors --upgrade "numpy==1.8.0"
+
+ # command to run tests
+script:
+    - python setup.py egg_info
+    - python setup.py nosetests -sv
+    # Generate documentation
+    #- cd doc
+    #- make html

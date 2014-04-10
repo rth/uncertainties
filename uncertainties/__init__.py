@@ -2371,7 +2371,11 @@ class AffineScalarFunc(object):
             # The 1 for the None fmt_type represents "at least one
             # digit past the decimal point"
             # (https://docs.python.org/3.4/library/string.html#format-specification-mini-language):
-            prec = max(-signif_limit, 1 if fmt_type is None else 0)
+            if fmt_type is None:
+                min_prec = 1
+            else:
+                min_prec = 0
+            prec = max(-signif_limit, min_prec)
         ## print "PREC", prec
             
         ########################################

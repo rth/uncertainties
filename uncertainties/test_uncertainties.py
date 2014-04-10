@@ -1807,7 +1807,8 @@ def test_format():
             '.2uf': '1.23+/-0',
             '.2ufS': '1.23(0)',
             '.2fS': '1.23(0)',
-            'g': '1.2345+/-0'
+            'g': '1.2345+/-0',
+            '': '1.2345+/-0'
         },
         
         (1234.56789, 0): {
@@ -1868,15 +1869,15 @@ def test_format():
             '10.1e': '       nan+/-   1.0e+02'
         },
         (float('nan'), 1e8): {  # NaN *nominal value*
-            '': '(nan+/-1.0)e+08',  # Like '{}'.format(1.)
-            'g': '(nan+/-1)e+08',  # Like '{:g}'.format(1.)
+            '': 'nan+/-100000000.0',  # Like '{}'.format(1e8)
+            'g': '(nan+/-1)e+08',  # Like '{:g}'.format(1e8)
             '.1e': '(nan+/-1.0)e+08',
             '.1E': '(%s+/-1.0)E+08' % NaN_EFG,
             '.1ue': '(nan+/-1)e+08',
             '10.1e': '       nan+/-   1.0e+08'  # 'nane+08' would be strange
         },                
         (float('nan'), 123456789): {  # NaN *nominal value*
-            '': '(nan+/-1.23456789)e+08',  # Similar to '{}'.format(123456789.)
+            '': 'nan+/-123456789.0',  # Similar to '{}'.format(123456789.)
             'g': '(nan+/-1.23457)e+08',  # Similar to '{:g}'.format(123456789.)
             '.1e': '(nan+/-1.2)e+08',
             '.1E': '(%s+/-1.2)E+08' % NaN_EFG,
@@ -1935,10 +1936,9 @@ def test_format():
             assert representation == result, (
                 # The representation is used, for terminal that do not
                 # support some characters like ±, and superscripts:
-                'Incorrect representation %r for format %r of %s+/-%s:'
+                'Incorrect representation %r for format %r of %r:'
                 ' %r expected.'
-                % (representation, format_spec, values[0], values[1],
-                   result))
+                % (representation, format_spec, value, result))
 
             # An empty format string is like calling str()
             # (http://docs.python.org/2/library/string.html#formatspec):

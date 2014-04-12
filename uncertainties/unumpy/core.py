@@ -541,14 +541,8 @@ class matrix(numpy.matrix):
         else:
             return numeric.dot(other, self)  # The order is important
 
-    # The NumPy doc for getI is empty:
-    # @uncertainties.set_doc(numpy.matrix.getI.__doc__)
     def getI(self):
-        "Matrix inverse or pseudo-inverse"
-        
-        # numpy.matrix.getI is OK too, but the rest of the code assumes that
-        # numpy.matrix.I is a property object anyway:
-
+        """Matrix inverse of pseudo-inverse."""
         m, n = self.shape
         if m == n:
             func = inv

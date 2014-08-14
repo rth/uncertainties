@@ -346,9 +346,8 @@ def func_with_deriv_to_uncert_func(func_with_derivatives):
         func_with_derivatives.
         """
 
-        # So that .flat works even if array_like is a list.  Later
-        # useful for faster code:
-        array_version = numpy.asarray(array_like)
+        # So that .flat works even if array_like is a list:
+        array_version = numpy.asanyarray(array_like)
 
         # Variables on which the array depends are collected:
         variables = set()
@@ -542,14 +541,8 @@ class matrix(numpy.matrix):
         else:
             return numeric.dot(other, self)  # The order is important
 
-    # The NumPy doc for getI is empty:
-    # @uncertainties.set_doc(numpy.matrix.getI.__doc__)
     def getI(self):
-        "Matrix inverse or pseudo-inverse"
-        
-        # numpy.matrix.getI is OK too, but the rest of the code assumes that
-        # numpy.matrix.I is a property object anyway:
-
+        """Matrix inverse of pseudo-inverse."""
         m, n = self.shape
         if m == n:
             func = inv

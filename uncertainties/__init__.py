@@ -7,7 +7,7 @@
 Calculations with full error propagation for quantities with uncertainties.
 Derivatives can also be calculated.
 
-Web user guide: http://packages.python.org/uncertainties/.
+Web user guide: https://pythonhosted.org/uncertainties/.
 
 Example of possible calculation: (0.2 +/- 0.01)**2 = 0.04 +/- 0.004.
 
@@ -241,8 +241,6 @@ import copy
 import warnings
 import itertools
 import inspect
-
-from backport import *
 
 # Numerical version:
 __version_info__ = (2, 4, 6)
@@ -1267,7 +1265,7 @@ GROUP_SYMBOLS = {
     }
 
 def format_num(nom_val_main, error_main, common_exp,
-               fmt_parts, prec, main_fmt_type, options):
+               fmt_parts, prec, main_pres_type, options):
     '''
     Returns a formatted number with uncertainty.
 
@@ -1300,13 +1298,13 @@ def format_num(nom_val_main, error_main, common_exp,
     this fails with Python < 2.6 if the resulting format is not
     accepted by the % operator.
     
-    prec -- precision to use with the main_fmt_type format type
+    prec -- precision to use with the main_pres_type format type
     (see below).
 
-    main_fmt_type -- format specification type, in "fF". This defines
-    how the mantissas, exponents and NaN values are represented (in
-    the same way as for float). None, the empty string, or "%" are not
-    accepted.
+    main_pres_type -- format presentation type, either "f" or
+    "F". This defines how the mantissas, exponents and NaN values are
+    represented (in the same way as for float). None, the empty
+    string, or "%" are not accepted.
 
     options -- options (as an object that support membership testing,
     like for instance a string). "S" is for the short-hand notation
@@ -1318,7 +1316,7 @@ def format_num(nom_val_main, error_main, common_exp,
     '''
 
     # print (nom_val_main, error_main, common_exp,
-    #        fmt_parts, prec, main_fmt_type, options)
+    #        fmt_parts, prec, main_pres_type, options)
     
     # If a decimal point were always present in zero rounded errors
     # that are not zero, the formatting would be difficult, in general
@@ -1357,7 +1355,7 @@ def format_num(nom_val_main, error_main, common_exp,
     elif print_type == 'default':
         # Case of e or E. The same convention as Python 2.7
         # to 3.3 is used for the display of the exponent:
-        exp_str = EXP_LETTERS[main_fmt_type]+'%+03d' % common_exp
+        exp_str = EXP_LETTERS[main_pres_type]+'%+03d' % common_exp
     else:
         exp_str = EXP_PRINT[print_type](common_exp)
 
@@ -1391,7 +1389,7 @@ def format_num(nom_val_main, error_main, common_exp,
             # format:
             fmt_parts['type'] or 's')
     else:
-        fmt_suffix_n = '.%d%s' % (prec, main_fmt_type)
+        fmt_suffix_n = '.%d%s' % (prec, main_pres_type)
 
 
     # print "FMT_SUFFIX_N", fmt_suffix_n
@@ -1411,7 +1409,7 @@ def format_num(nom_val_main, error_main, common_exp,
             # The error is exactly zero
             uncert_str = '0'
         elif isnan(error_main):
-            uncert_str = robust_format(error_main, main_fmt_type)
+            uncert_str = robust_format(error_main, main_pres_type)
             if 'L' in options:
                 uncert_str = '\mathrm{%s}' % uncert_str
         else:  #  Error with a meaningful first digit (not 0, not NaN)
@@ -1602,9 +1600,9 @@ def format_num(nom_val_main, error_main, common_exp,
                     # format:
                     fmt_parts['type'] or 's')
             else:
-                fmt_suffix_e = '.%d%s' % (prec, main_fmt_type)
+                fmt_suffix_e = '.%d%s' % (prec, main_pres_type)
         else:
-            fmt_suffix_e = '.0%s' % main_fmt_type
+            fmt_suffix_e = '.0%s' % main_pres_type
         
         error_str = robust_format(error_main, fmt_prefix_e+fmt_suffix_e)
 
@@ -1950,20 +1948,21 @@ class AffineScalarFunc(object):
         The format specification are the same as for format() for
         floats, as defined for Python 2.6+ (restricted to what the %
         operator accepts, if using an earlier version of Python),
-        except that the n format type is not supported. In particular,
-        the usual precision, alignment, sign flag, etc. can be
-        used. The behavior of the various format types (e, f, g, none,
-        etc.) is similar. Moreover, the format is extended: the number
-        of digits of the uncertainty can be controlled, as is the way
-        the uncertainty is indicated (with +/- or with the short-hand
-        notation 3.14(1), in LaTeX or with a simple text string,...).
+        except that the n presentation type is not supported. In
+        particular, the usual precision, alignment, sign flag,
+        etc. can be used. The behavior of the various presentation
+        types (e, f, g, none, etc.) is similar. Moreover, the format
+        is extended: the number of digits of the uncertainty can be
+        controlled, as is the way the uncertainty is indicated (with
+        +/- or with the short-hand notation 3.14(1), in LaTeX or with
+        a simple text string,...).
 
         Beyond the use of options at the end of the format
         specification, the main difference with floats is that a "u"
-        just before the format type (f, e, g, none, etc.) activates
-        the "uncertainty control" mode (e.g.: ".6u").  This mode is
-        also activated when not using any explicit precision (e.g.:
-        "g", "10f", "+010,e" format specifications).  If the
+        just before the presentation type (f, e, g, none, etc.)
+        activates the "uncertainty control" mode (e.g.: ".6u").  This
+        mode is also activated when not using any explicit precision
+        (e.g.: "g", "10f", "+010,e" format specifications).  If the
         uncertainty does not have a meaningful number of significant
         digits (0 and NaN uncertainties), this mode is automatically
         deactivated.
@@ -2076,9 +2075,10 @@ class AffineScalarFunc(object):
                 # Sub-classes handled:
                 % (format_spec, self.__class__.__name__))
         
-        # Effective format type: f, e, g, etc., or None, like in
+        # Effective format presentation type: f, e, g, etc., or None,
+        # like in
         # https://docs.python.org/3.4/library/string.html#format-specification-mini-language.
-        fmt_type = match.group('type') or None
+        pres_type = match.group('type') or None
 
         # Shortcut:
         fmt_prec = match.group('prec')  # Can be None
@@ -2100,7 +2100,7 @@ class AffineScalarFunc(object):
         
         # The '%' format is treated internally as a display option: it
         # should not be applied individually to each part:
-        if fmt_type == '%':
+        if pres_type == '%':
             # Because '%' does 0.0055*100, the value
             # 0.5499999999999999 is obtained, which rounds to 0.5. The
             # original rounded value is 0.006. The same behavior is
@@ -2110,10 +2110,10 @@ class AffineScalarFunc(object):
             # multiplication.
             std_dev *= 100
             nom_val *= 100
-            fmt_type = 'f'
+            pres_type = 'f'
             options.add('%')
 
-        # At this point, fmt_type is in eEfFgG (not None, not %).
+        # At this point, pres_type is in eEfFgG (not None, not %).
             
         ########################################
 
@@ -2128,7 +2128,7 @@ class AffineScalarFunc(object):
 
         # Reference value for the calculation of a possible exponent,
         # if needed:
-        if fmt_type in (None, 'e', 'E', 'g', 'G'):
+        if pres_type in (None, 'e', 'E', 'g', 'G'):
             # Reference value for the exponent: the largest value
             # defines what the exponent will be (another convention
             # could have been chosen, like using the exponent of the
@@ -2201,12 +2201,12 @@ class AffineScalarFunc(object):
             # https://docs.python.org/3.4/library/string.html#format-specification-mini-language
             if fmt_prec:
                 prec = int(fmt_prec)
-            elif fmt_type is None:
+            elif pres_type is None:
                 prec = 12
             else:
                 prec = 6
 
-            if fmt_type in ('f', 'F'):
+            if pres_type in ('f', 'F'):
 
                 digits_limit = -prec
                 
@@ -2215,7 +2215,7 @@ class AffineScalarFunc(object):
                 # We first calculate the number of significant digits
                 # to be displayed (if possible):
                 
-                if fmt_type in ('e', 'E'):
+                if pres_type in ('e', 'E'):
                     # The precision is the number of significant
                     # digits required - 1 (because there is a single
                     # digit before the decimal point, which is not
@@ -2223,7 +2223,7 @@ class AffineScalarFunc(object):
                     # the e/E format type):
                     num_signif_digits = prec+1
 
-                else:  # Format type in None, g, G
+                else:  # Presentation type in None, g, G
                     
                     # Effective format specification precision: the rule
                     # of
@@ -2232,14 +2232,15 @@ class AffineScalarFunc(object):
 
                     # The final number of significant digits to be
                     # displayed is not necessarily obvious: trailing
-                    # zeros are removed (with the gG format type), so
-                    # num_signif_digits is the number of significant
-                    # digits if trailing zeros were not removed. This
-                    # quantity is relevant for the rounding implied by
-                    # the exponent test of the g/G format:
+                    # zeros are removed (with the gG presentation
+                    # type), so num_signif_digits is the number of
+                    # significant digits if trailing zeros were not
+                    # removed. This quantity is relevant for the
+                    # rounding implied by the exponent test of the g/G
+                    # format:
 
                     # 0 is interpreted like 1 (as with floats with a
-                    # gG format type):
+                    # gG presentation type):
                     num_signif_digits = prec or 1
 
                 # The number of significant digits is important for
@@ -2262,9 +2263,9 @@ class AffineScalarFunc(object):
         # True), 'common_exp' is set to the exponent that should be
         # used.
 
-        if fmt_type in ('f', 'F'):
+        if pres_type in ('f', 'F'):
             use_exp = False
-        elif fmt_type in ('e', 'E'):
+        elif pres_type in ('e', 'E'):
             if not non_nan_values:
                 use_exp = False
             else:                
@@ -2348,9 +2349,9 @@ class AffineScalarFunc(object):
         ########################################
 
         # Format of the main (i.e. with no exponent) parts (the None
-        # format type is similar to the g format type):
+        # presentation type is similar to the g format type):
         
-        main_fmt_type = 'fF'[(fmt_type or 'g').isupper()]
+        main_pres_type = 'fF'[(pres_type or 'g').isupper()]
 
         # The precision of the main parts must be adjusted so as
         # to take into account the special role of the decimal
@@ -2368,14 +2369,15 @@ class AffineScalarFunc(object):
             # float formatting) precision to be used for the main
             # parts is 0 (all digits must be shown).
             #
-            # The 1 for the None fmt_type represents "at least one
+            # The 1 for the None pres_type represents "at least one
             # digit past the decimal point"
             # (https://docs.python.org/3.4/library/string.html#format-specification-mini-language):
-            if fmt_type is None:
+            if pres_type is None:
                 min_prec = 1
             else:
                 min_prec = 0
             prec = max(-signif_limit, min_prec)
+
         ## print "PREC", prec
             
         ########################################
@@ -2383,19 +2385,19 @@ class AffineScalarFunc(object):
         ## print (
         ##     "FORMAT_NUM parameters: nom_val_mantissa={},"
         ##     " std_dev_mantissa={}, common_exp={},"
-        ##     " match.groupdict()={}, prec={}, main_fmt_type={},"
+        ##     " match.groupdict()={}, prec={}, main_pres_type={},"
         ##     " options={}".format(
         ##     nom_val_mantissa, std_dev_mantissa, common_exp, 
         ##     match.groupdict(),
         ##     prec,
-        ##     main_fmt_type,
+        ##     main_pres_type,
         ##     options))
 
         # Final formatting:
         return format_num(nom_val_mantissa, std_dev_mantissa, common_exp, 
                           match.groupdict(),
                           prec=prec,
-                          main_fmt_type=main_fmt_type,
+                          main_pres_type=main_pres_type,
                           options=options)
 
     # Alternate name for __format__, for use with Python < 2.6:
@@ -2515,7 +2517,7 @@ class AffineScalarFunc(object):
 
 # Nicer name, for users: isinstance(ufloat(...), UFloat) is
 # True. Also: isinstance(..., UFloat) is the test for "is this a
-# number with uncertainties from the uncertainties package?".
+# number with uncertainties from the uncertainties package?":
 UFloat = AffineScalarFunc
 
 ###############################################################################

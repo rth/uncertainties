@@ -3,7 +3,7 @@ Tests of the code in uncertainties.umath.
 
 These tests can be run through the Nose testing framework.
 
-(c) 2010-2013 by Eric O. LEBIGOT (EOL).
+(c) 2010-2015 by Eric O. LEBIGOT (EOL).
 """
 
 from __future__ import division
@@ -166,7 +166,12 @@ def test_monte_carlo_comparison():
 
     # We rely on the fact that covariances_samples very rarely has
     # null elements:
-    
+
+    # !!! The test could be done directly with NumPy's comparison
+    # tools, no? See assert_allclose, assert_array_almost_equal_nulp
+    # or assert_array_max_ulp. This is relevant for all vectorized
+    # occurrences of numbers_close.
+
     assert numpy.vectorize(test_uncertainties.numbers_close)(
         covariances_this_module,
         covariances_samples,

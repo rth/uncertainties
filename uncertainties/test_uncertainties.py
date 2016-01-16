@@ -5,7 +5,7 @@ Tests of the code in uncertainties/__init__.py.
 
 These tests can be run through the Nose testing framework.
 
-(c) 2010-2013 by Eric O. LEBIGOT (EOL).
+(c) 2010-2015 by Eric O. LEBIGOT (EOL).
 """
 
 from __future__ import division
@@ -18,14 +18,14 @@ import math
 import random
 import sys
 
-        
 # 3rd-party modules
 # import nose.tools
 
 # Local modules
 
 import uncertainties
-from uncertainties import ufloat, AffineScalarFunc, ufloat_fromstr, isnan
+from uncertainties import (ufloat, AffineScalarFunc, ufloat_fromstr,
+                           isnan, isinf)
 from uncertainties import umath
 from backport import *
 
@@ -50,17 +50,22 @@ def numbers_close(x, y, tolerance=1e-6):
     NaN is allowed: it is considered close to itself.
     """
 
+    # !!! Python 3.5+ has math.isclose(): maybe it could be used here.
+
     # Instead of using a try and ZeroDivisionError, we do a test,
     # NaN could appear silently:
 
     if x != 0 and y != 0:
-        if not uncertainties.isnan(x):
+        if isinf(x):
+            return isinf(y)
+        elif isnan(x):
+            return isnan(y)
+        else:
             # Symmetric form of the test:
             return 2*abs(x-y)/(abs(x)+abs(y)) < tolerance
-        else:
-            return uncertainties.isnan(y)
+
     else:  # Either x or y is zero
-        return abs(x or y) < tolerance 
+        return abs(x or y) < tolerance
 
 def ufloats_close(x, y, tolerance=1e-6):
     '''
@@ -75,11 +80,11 @@ def ufloats_close(x, y, tolerance=1e-6):
     diff = x-y
     return (numbers_close(diff.nominal_value, 0, tolerance)
             and numbers_close(diff.std_dev, 0, tolerance))
-    
+
 class DerivativesDiffer(Exception):
     pass
 
-    
+
 def compare_derivatives(func, numerical_derivatives,
                          num_args_list=None):
     """
@@ -88,7 +93,7 @@ def compare_derivatives(func, numerical_derivatives,
     'numerical_derivatives' functions.
 
     Raises a DerivativesDiffer exception in case of problem.
-    
+
     These functions all take the number of arguments listed in
     num_args_list.  If num_args is None, it is automatically obtained.
 
@@ -99,10 +104,10 @@ def compare_derivatives(func, numerical_derivatives,
         funcname = func.name
     except AttributeError:
         funcname = func.__name__
-        
+
     # print "Testing", func.__name__
 
-    if not num_args_list: 
+    if not num_args_list:
 
         # Detecting automatically the correct number of arguments is not
         # always easy (because not all values are allowed, etc.):
@@ -151,7 +156,7 @@ def compare_derivatives(func, numerical_derivatives,
                 # We include negative numbers, for more thorough tests:
                 args = []
                 for arg_num in range(num_args):
-                    if arg_num in integer_arg_nums:                    
+                    if arg_num in integer_arg_nums:
                         args.append(random.choice(range(-10, 10)))
                     else:
                         args.append(
@@ -167,7 +172,7 @@ def compare_derivatives(func, numerical_derivatives,
                 # wrapping in wrap(): no test has to be performed.
                 # Some functions also yield tuples...
                 if isinstance(func_approx, AffineScalarFunc):
-                    
+
                     # We compare all derivatives:
                     for (arg_num, (arg, numerical_deriv)) in (
                         enumerate(zip(args, numerical_derivatives))):
@@ -177,7 +182,7 @@ def compare_derivatives(func, numerical_derivatives,
                             continue
 
                         fixed_deriv_value = func_approx.derivatives[arg]
-                        
+
                         num_deriv_value = numerical_deriv(*args_scalar)
 
                         # This message is useful: the user can see that
@@ -185,7 +190,7 @@ def compare_derivatives(func, numerical_derivatives,
                         # performed, silently):
                         print "Testing %s at %s, arg #%d" % (
                             funcname, args, arg_num)
-                        
+
                         if not numbers_close(fixed_deriv_value,
                                               num_deriv_value, 1e-4):
 
@@ -230,7 +235,7 @@ def test_value_construction():
     assert x.nominal_value == 3
     assert x.std_dev == 0.14
     assert x.tag is None
-    
+
     # ... with tag as positional argument:
     x = ufloat(3, 0.14, 'pi')
     assert x.nominal_value == 3
@@ -250,16 +255,16 @@ def test_value_construction():
     # does not replace ufloat((3, 0.14)) by ufloat(3, 14): the goal
     # here is to make sure that the obsolete form gives the same
     # result as the new form.
-    
+
     representation = (3, 0.14)  # Obsolete representation
-    
+
     x = ufloat(3, 0.14)
     x2 = ufloat(representation)  # Obsolete
     assert x.nominal_value == x2.nominal_value
     assert x.std_dev == x2.std_dev
     assert x.tag is None
     assert x2.tag is None
-    
+
     # With tag as positional argument:
     x = ufloat(3, 0.14, "pi")
     x2 = ufloat(representation, "pi")  # Obsolete
@@ -267,7 +272,7 @@ def test_value_construction():
     assert x.std_dev == x2.std_dev
     assert x.tag == 'pi'
     assert x2.tag == 'pi'
-    
+
     # With tag keyword:
     x = ufloat(3, 0.14, tag="pi")
     x2 = ufloat(representation, tag="pi")  # Obsolete
@@ -282,13 +287,13 @@ def test_value_construction():
         x = ufloat(3, -0.1)
     except uncertainties.NegativeStdDev:
         pass
-    
+
     try:
         # Obsolete form:
         x = ufloat((3, -0.1))
     except uncertainties.NegativeStdDev:
         pass
-    
+
 def test_ufloat_fromstr():
     "Input of numbers with uncertainties as a string"
 
@@ -321,17 +326,17 @@ def test_ufloat_fromstr():
         # Global exponent:
         '(3.141+/-0.001)E+02': (314.1, 0.1),
 
-        
+
         ## Pretty-print notation:
-        
+
         # ± sign, global exponent (not pretty-printed):
         u'(3.141±0.001)E+02': (314.1, 0.1),
         # ± sign, individual exponent:
         u'3.141E+02±0.001e2': (314.1, 0.1),
-        
+
         # ± sign, times symbol, superscript (= full pretty-print):
         u'(3.141 ± 0.001) × 10²': (314.1, 0.1),
-        
+
         # NaN uncertainty:
         u'(3.141±nan)E+02': (314.1, float('nan')),
         '3.141e+02+/-nan': (314.1, float('nan')),
@@ -344,7 +349,7 @@ def test_ufloat_fromstr():
         # Special float representation:
         '-3(0.)': (-3, 0)
         }
-          
+
     for (representation, values) in tests.iteritems():
 
         # Without tag:
@@ -352,7 +357,7 @@ def test_ufloat_fromstr():
         assert numbers_close(num.nominal_value, values[0])
         assert numbers_close(num.std_dev, values[1])
         assert num.tag is None
-        
+
         # With a tag as positional argument:
         num = ufloat_fromstr(representation, 'test variable')
         assert numbers_close(num.nominal_value, values[0])
@@ -364,20 +369,20 @@ def test_ufloat_fromstr():
         assert numbers_close(num.nominal_value, values[0])
         assert numbers_close(num.std_dev, values[1])
         assert num.tag == 'test variable'
-        
+
         ## Obsolete forms
 
         num = ufloat(representation)  # Obsolete
         assert numbers_close(num.nominal_value, values[0])
         assert numbers_close(num.std_dev, values[1])
         assert num.tag is None
-        
+
         # Call with a tag list argument:
         num = ufloat(representation, 'test variable')  # Obsolete
         assert numbers_close(num.nominal_value, values[0])
         assert numbers_close(num.std_dev, values[1])
         assert num.tag == 'test variable'
-        
+
         # Call with a tag keyword argument:
         num = ufloat(representation, tag='test variable')  # Obsolete
         assert numbers_close(num.nominal_value, values[0])
@@ -385,7 +390,7 @@ def test_ufloat_fromstr():
         assert num.tag == 'test variable'
 
 ###############################################################################
-            
+
 # Test of correctness of the fixed (usually analytical) derivatives:
 def test_fixed_derivatives_basic_funcs():
     """
@@ -424,15 +429,15 @@ def test_fixed_derivatives_basic_funcs():
 def test_copy():
     "Standard copy module integration"
     import gc
-    
+
     x = ufloat(3, 0.1)
     assert x == x
-    
+
     y = copy.copy(x)
     assert x != y
     assert not(x == y)
     assert y in y.derivatives.keys()  # y must not copy the dependence on x
-    
+
     z = copy.deepcopy(x)
     assert x != z
 
@@ -440,7 +445,7 @@ def test_copy():
     t = x + 2*z
     # t depends on x:
     assert x in t.derivatives
-    
+
     # The relationship between the copy of an expression and the
     # original variables should be preserved:
     t_copy = copy.copy(t)
@@ -453,7 +458,7 @@ def test_copy():
     # variables should be broken, since the deep copy created new,
     # independent variables:
     t_deepcopy = copy.deepcopy(t)
-    assert x not in t_deepcopy.derivatives    
+    assert x not in t_deepcopy.derivatives
     assert (uncertainties.covariance_matrix([t, z]) !=
             uncertainties.covariance_matrix([t_deepcopy, z]))
 
@@ -471,7 +476,7 @@ def test_copy():
 
 ## Classes for the pickling tests (put at the module level, so that
 ## they can be unpickled):
-    
+
 # Subclass without slots:
 class NewVariable_dict(uncertainties.Variable):
     pass
@@ -483,7 +488,7 @@ class NewVariable_slots_tuple(uncertainties.Variable):
 # Subclass with slots defined by a string:
 class NewVariable_slots_str(uncertainties.Variable):
     __slots__ = 'new_attr'
-        
+
 def test_pickling():
     "Standard pickle module integration."
 
@@ -501,26 +506,26 @@ def test_pickling():
     (f_unpickled, x_unpickled2) = pickle.loads(pickle.dumps((f, x)))
     # Correlations must be preserved:
     assert f_unpickled - x_unpickled2 - x_unpickled2 == 0
-    
+
     ## Tests with subclasses:
 
     for subclass in (NewVariable_dict, NewVariable_slots_tuple,
                      NewVariable_slots_str):
-        
+
         x = subclass(3, 0.14)
 
         # Pickling test with possibly uninitialized slots:
         pickle.loads(pickle.dumps(x))
-        
+
         # Unpickling test:
         x.new_attr = 'New attr value'
         x_unpickled = pickle.loads(pickle.dumps(x))
-        # Must exist (From the slots of the parent class):        
+        # Must exist (From the slots of the parent class):
         x_unpickled.nominal_value
-        x_unpickled.new_attr  # Must exist    
+        x_unpickled.new_attr  # Must exist
 
     ##
-        
+
     # Corner case test: when an attribute is present both in __slots__
     # and in __dict__, it is first looked up from the slots
     # (references:
@@ -536,12 +541,12 @@ def test_pickling():
     x.__dict__['_nominal_value'] = 'in dict'
     # Additional __dict__ attribute:
     x.dict_attr = 'dict attribute'
-    
+
     x_unpickled = pickle.loads(pickle.dumps(x))
     # We make sure that the data is still there and untouched:
     assert x_unpickled._nominal_value == 'in slots'
     assert x_unpickled.__dict__ == x.__dict__
-        
+
 def test_int_div():
     "Integer division"
     # We perform all operations on floats, because derivatives can
@@ -557,7 +562,7 @@ def test_comparison_ops():
     "Test of comparison operators"
 
     import random
-    
+
     # Operations on quantities equivalent to Python numbers must still
     # be correct:
     a = ufloat(-3, 0)
@@ -569,7 +574,7 @@ def test_comparison_ops():
     assert b == c
 
     x = ufloat(3, 0.1)
-    
+
     # One constraint is that usual Python code for inequality testing
     # still work in a reasonable way (for instance, it is generally
     # desirable that functions defined by different formulas on
@@ -590,11 +595,11 @@ def test_comparison_ops():
     assert x/2 == x/2
     # With uncorrelated result that have the same behavior (value and
     # standard error):
-    assert 2*ufloat(1, 0.1) != ufloat(2, 0.2)    
+    assert 2*ufloat(1, 0.1) != ufloat(2, 0.2)
     # Comparaison between 2 _different_ Variable objects
     # that are uncorrelated:
     assert x != ufloat(3, 0.1)
-    
+
     assert x != ufloat(3, 0.2)
 
     # Comparison to other types should work:
@@ -602,9 +607,9 @@ def test_comparison_ops():
     assert x-x == 0  # Comparable, even though the types are different
     assert x != [1, 2]
 
-    
+
     ####################
-    
+
     # Checks of the semantics of logical operations: they return True
     # iff they are always True when the parameters vary in an
     # infinitesimal interval inside sigma (sigma == 0 is a special
@@ -613,7 +618,7 @@ def test_comparison_ops():
     def test_all_comparison_ops(x, y):
         """
         Takes two Variable objects.
-        
+
         Fails if any comparison operation fails to follow the proper
         semantics: a comparison only returns True if the correspond float
         comparison results are True for all the float values taken by
@@ -643,11 +648,11 @@ def test_comparison_ops():
                 float_func = getattr(float, op)
             except AttributeError:  # Python 2.3's floats don't have __ne__
                 continue
-            
+
             # Determination of the correct truth value of func(x, y):
 
             sampled_results = []
-            
+
             # The "main" value is an important particular case, and
             # the starting value for the final result
             # (correct_result):
@@ -693,7 +698,7 @@ def test_comparison_ops():
     test_all_comparison_ops(ufloat(1, 1),
                             ufloat(1, 1))
 
-    
+
 def test_logic():
     "Boolean logic: __nonzero__, bool."
 
@@ -715,7 +720,7 @@ def test_obsolete():
 
     x_std_dev = x.std_dev
     assert x_std_dev() == 0.2  # Obsolete call
-    
+
 def test_basic_access_to_data():
     "Access to data from Variable and AffineScalarFunc objects."
 
@@ -755,7 +760,7 @@ def test_basic_access_to_data():
     else:
         raise Exception(
             "std_dev should not be settable for calculated results")
-    
+
     # Calculation of deviations in units of the standard deviations:
     assert 10/x.std_dev == x.std_score(10 + x.nominal_value)
 
@@ -778,7 +783,7 @@ def test_correlations():
     assert normally_zero.nominal_value == 0
     assert normally_zero.std_dev == 0
 
-    
+
 def test_no_coercion():
     """
     Coercion of Variable object to a simple float.
@@ -798,7 +803,7 @@ def test_wrapped_func_no_args_no_kwargs():
     '''
     Wraps a function that takes only positional-or-keyword parameters.
     '''
-    
+
     def f_auto_unc(x, y):
         return 2*x+umath.sin(y)
 
@@ -812,7 +817,7 @@ def test_wrapped_func_no_args_no_kwargs():
     y = uncertainties.ufloat(10, 2)
 
     ### Automatic numerical derivatives:
-    
+
     ## Fully automatic numerical derivatives:
     f_wrapped = uncertainties.wrap(f)
     assert ufloats_close(f_auto_unc(x, y), f_wrapped(x, y))
@@ -832,7 +837,7 @@ def test_wrapped_func_no_args_no_kwargs():
     ## Fully defined derivatives:
     f_wrapped = uncertainties.wrap(f, [lambda x, y: 2,
                                        lambda x, y: math.cos(y)])
-    
+
     assert ufloats_close(f_auto_unc(x, y), f_wrapped(x, y))
 
     # Call with keyword arguments:
@@ -849,7 +854,7 @@ def test_wrapped_func_no_args_no_kwargs():
     '''
     Wraps a function that takes only positional-or-keyword parameters.
     '''
-    
+
     def f_auto_unc(x, y):
         return 2*x+umath.sin(y)
 
@@ -863,7 +868,7 @@ def test_wrapped_func_no_args_no_kwargs():
     y = uncertainties.ufloat(10, 2)
 
     ### Automatic numerical derivatives:
-    
+
     ## Fully automatic numerical derivatives:
     f_wrapped = uncertainties.wrap(f)
     assert ufloats_close(f_auto_unc(x, y), f_wrapped(x, y))
@@ -884,7 +889,7 @@ def test_wrapped_func_no_args_no_kwargs():
     ## Fully defined derivatives:
     f_wrapped = uncertainties.wrap(f, [lambda x, y: 2,
                                        lambda x, y: math.cos(y)])
-    
+
     assert ufloats_close(f_auto_unc(x, y), f_wrapped(x, y))
 
     # Call with keyword arguments:
@@ -902,7 +907,7 @@ def test_wrapped_func_args_no_kwargs():
     Wraps a function that takes only positional-or-keyword and
     var-positional parameters.
     '''
-    
+
     def f_auto_unc(x, y, *args):
         return 2*x+umath.sin(y)+3*args[1]
 
@@ -918,9 +923,9 @@ def test_wrapped_func_args_no_kwargs():
     z = uncertainties.ufloat(100, 3)
 
     args = [s, z, s]  # var-positional parameters
-    
+
     ### Automatic numerical derivatives:
-    
+
     ## Fully automatic numerical derivatives:
     f_wrapped = uncertainties.wrap(f)
     assert ufloats_close(f_auto_unc(x, y, *args), f_wrapped(x, y, *args))
@@ -937,12 +942,12 @@ def test_wrapped_func_args_no_kwargs():
                                        lambda x, y, *args: math.cos(y),
                                        None,
                                        lambda x, y, *args: 3])
-    
+
     assert ufloats_close(f_auto_unc(x, y, *args), f_wrapped(x, y, *args))
 
     ## Automatic additional derivatives for non-defined derivatives:
-    
-    # No derivative for y:    
+
+    # No derivative for y:
     f_wrapped = uncertainties.wrap(f, [lambda x, y, *args: 2])
     assert ufloats_close(f_auto_unc(x, y, *args), f_wrapped(x, y, *args))
 
@@ -951,7 +956,7 @@ def test_wrapped_func_no_args_kwargs():
     Wraps a function that takes only positional-or-keyword and
     var-keyword parameters.
     '''
-    
+
     def f_auto_unc(x, y, **kwargs):
         return 2*x+umath.sin(y)+3*kwargs['z']
 
@@ -969,7 +974,7 @@ def test_wrapped_func_no_args_kwargs():
     kwargs = {'s': s, 'z': z}  # Arguments not in signature
 
     ### Automatic numerical derivatives:
-    
+
     ## Fully automatic numerical derivatives:
     f_wrapped = uncertainties.wrap(f)
     assert ufloats_close(f_auto_unc(x, y, **kwargs),
@@ -978,7 +983,7 @@ def test_wrapped_func_no_args_kwargs():
     # Call with keyword arguments:
     assert ufloats_close(f_auto_unc(y=y, x=x, **kwargs),
                           f_wrapped(y=y, x=x, **kwargs))
-    
+
     ## Automatic additional derivatives for non-defined derivatives,
     ## and explicit None derivative:
 
@@ -1001,7 +1006,7 @@ def test_wrapped_func_no_args_kwargs():
     # Call with keyword arguments:
     assert ufloats_close(f_auto_unc(y=y, x=x, **kwargs),
                           f_wrapped(y=y, x=x, **kwargs))
-    
+
     # No derivative for positional-or-keyword parameter y, derivative
     # for optional-keyword parameter z:
     f_wrapped = uncertainties.wrap(f, [None],
@@ -1012,7 +1017,7 @@ def test_wrapped_func_no_args_kwargs():
     # Call with keyword arguments:
     assert ufloats_close(f_auto_unc(y=y, x=x, **kwargs),
                           f_wrapped(y=y, x=x, **kwargs))
-    
+
     ### Explicit derivatives:
 
     ## Fully defined derivatives:
@@ -1020,16 +1025,16 @@ def test_wrapped_func_no_args_kwargs():
         f,
         [lambda x, y, **kwargs: 2, lambda x, y, **kwargs: math.cos(y)],
         {'z:': lambda x, y, **kwargs: 3})
-    
+
     assert ufloats_close(f_auto_unc(x, y, **kwargs),
                           f_wrapped(x, y, **kwargs))
     # Call with keyword arguments:
     assert ufloats_close(f_auto_unc(y=y, x=x, **kwargs),
                           f_wrapped(y=y, x=x, **kwargs))
-    
+
     ## Automatic additional derivatives for non-defined derivatives:
-    
-    # No derivative for y or z:    
+
+    # No derivative for y or z:
     f_wrapped = uncertainties.wrap(f, [lambda x, y, **kwargs: 2])
     assert ufloats_close(f_auto_unc(x, y, **kwargs),
                           f_wrapped(x, y, **kwargs))
@@ -1043,7 +1048,7 @@ def test_wrapped_func_args_kwargs():
     Wraps a function that takes positional-or-keyword, var-positional
     and var-keyword parameters.
     '''
-    
+
     def f_auto_unc(x, y, *args, **kwargs):
         return 2*x+umath.sin(y)+4*args[1]+3*kwargs['z']
 
@@ -1063,10 +1068,10 @@ def test_wrapped_func_args_kwargs():
     kwargs = {'u': s, 'z': z}  # Arguments not in signature
 
     ### Automatic numerical derivatives:
-    
+
     ## Fully automatic numerical derivatives:
     f_wrapped = uncertainties.wrap(f)
-    
+
     assert ufloats_close(f_auto_unc(x, y, *args, **kwargs),
                           f_wrapped(x, y, *args, **kwargs), tolerance=1e-5)
 
@@ -1085,14 +1090,14 @@ def test_wrapped_func_args_kwargs():
     f_wrapped = uncertainties.wrap(f, [None], {'z': None})
     assert ufloats_close(f_auto_unc(x, y, *args, **kwargs),
                           f_wrapped(x, y, *args, **kwargs), tolerance=1e-5)
-    
+
     # No derivative for positional-or-keyword parameter y, derivative
     # for optional-keyword parameter z:
     f_wrapped = uncertainties.wrap(f, [None],
                                    {'z': lambda x, y, *args, **kwargs: 3})
     assert ufloats_close(f_auto_unc(x, y, *args, **kwargs),
                           f_wrapped(x, y, *args, **kwargs), tolerance=1e-5)
-    
+
     ### Explicit derivatives:
 
     ## Fully defined derivatives:
@@ -1101,18 +1106,18 @@ def test_wrapped_func_args_kwargs():
         [lambda x, y, *args, **kwargs: 2,
          lambda x, y, *args, **kwargs: math.cos(y)],
         {'z:': lambda x, y, *args, **kwargs: 3})
-    
+
     assert ufloats_close(f_auto_unc(x, y, *args, **kwargs),
                           f_wrapped(x, y, *args, **kwargs), tolerance=1e-5)
-    
+
     ## Automatic additional derivatives for non-defined derivatives:
-    
-    # No derivative for y or z:    
+
+    # No derivative for y or z:
     f_wrapped = uncertainties.wrap(f, [lambda x, y, *args, **kwargs: 2])
     assert ufloats_close(f_auto_unc(x, y, *args, **kwargs),
                           f_wrapped(x, y, *args, **kwargs), tolerance=1e-5)
 
-    
+
 def test_wrapped_func():
     """
     Test uncertainty-aware functions obtained through wrapping.
@@ -1124,7 +1129,7 @@ def test_wrapped_func():
     # uncertainties:
     def f_auto_unc(angle, *list_var):
         return umath.cos(angle) + sum(list_var)
-    
+
     def f(angle, *list_var):
         # We make sure that this function is only ever called with
         # numbers with no uncertainty (since it is wrapped):
@@ -1132,7 +1137,7 @@ def test_wrapped_func():
         assert not any(isinstance(arg, uncertainties.UFloat)
                        for arg in list_var)
         return f_auto_unc(angle, *list_var)
-    
+
     f_wrapped = uncertainties.wrap(f)
 
 
@@ -1147,7 +1152,7 @@ def test_wrapped_func():
 
     ########################################
     # Call with uncertainties:
-    
+
     angle = uncertainties.ufloat(1, 0.1)
     list_value = uncertainties.ufloat(3, 0.2)
 
@@ -1155,15 +1160,15 @@ def test_wrapped_func():
 
     assert ufloats_close(f_wrapped(angle, *[1, angle]),
                           f_auto_unc(angle, *[1, angle]))
-    
+
     assert ufloats_close(f_wrapped(angle, *[list_value, angle]),
                           f_auto_unc(angle, *[list_value, angle]))
-    
+
     ########################################
     # Non-numerical arguments, and  explicit and implicit derivatives:
     def f(x, y, z, t, u):
         return x+2*z+3*t+4*u
-    
+
     f_wrapped = uncertainties.wrap(
         f, [lambda *args: 1, None, lambda *args:2, None])  # No deriv. for u
 
@@ -1187,7 +1192,7 @@ def test_wrap_with_kwargs():
     # uncertainties:
     def f_auto_unc(x, y, *args, **kwargs):
         return x + umath.sin(y) + 2*args[0] + 3*kwargs['t']
-    
+
     # We also add keyword arguments in the function which is wrapped:
     def f(x, y, *args, **kwargs):
         # We make sure that f is not called directly with a number with
@@ -1195,9 +1200,9 @@ def test_wrap_with_kwargs():
 
         for value in [x, y]+list(args)+kwargs.values():
             assert not isinstance(value, uncertainties.UFloat)
-        
+
         return f_auto_unc(x, y, *args, **kwargs)
-    
+
     f_wrapped = uncertainties.wrap(f)
 
 
@@ -1205,7 +1210,7 @@ def test_wrap_with_kwargs():
     y = ufloat(10, 0.11)
     z = ufloat(100, 0.111)
     t = ufloat(0.1, 0.1111)
-        
+
     assert ufloats_close(f_wrapped(x, y, z, t=t),
                           f_auto_unc(x, y, z, t=t), tolerance=1e-5)
 
@@ -1222,10 +1227,10 @@ def test_wrap_with_kwargs():
 
     # The *args parameter of f() is given as a keyword argument, so as
     # to try to confuse the code:
-    
+
     assert (f_wrapped2(x, y, z, t=t).derivatives[y]
             == f_auto_unc(x, y, z, t=t).derivatives[y])
-    
+
     # Derivatives supplied through the keyword-parameter dictionary of
     # derivatives, and also derivatives supplied for the
     # var-positional arguments (*args[0]):
@@ -1244,13 +1249,13 @@ def test_wrap_with_kwargs():
 
     ########################################
     # Making sure that user-supplied derivatives are indeed called:
-    
+
     class FunctionCalled(Exception):
         '''
         Raised to signal that a function is indeed called.
         '''
         pass
-    
+
     def failing_func(x, y, *args, **kwargs):
         raise FunctionCalled
 
@@ -1265,7 +1270,7 @@ def test_wrap_with_kwargs():
         pass
     else:
         raise Exception('User-supplied derivative should be called')
-    
+
     try:
         f_wrapped4(x, y, z, t=3.14)
     except FunctionCalled:
@@ -1277,9 +1282,9 @@ def test_wrap_with_kwargs():
         f_wrapped4(x, 3.14, z, t=3.14)
     except FunctionCalled:
         raise Exception('User-supplied derivative should *not* be called')
-    
+
 ###############################################################################
-        
+
 def test_access_to_std_dev():
     "Uniform access to the standard deviation"
 
@@ -1293,7 +1298,7 @@ def test_access_to_std_dev():
     # std_dev for other objects:
     assert uncertainties.std_dev([]) == 0
     assert uncertainties.std_dev(None) == 0
-    
+
 ###############################################################################
 
 def test_covariances():
@@ -1310,7 +1315,7 @@ def test_covariances():
     # Non-diagonal elements:
     assert numbers_close(covs[0][1], -0.02)
 
-    
+
 ###############################################################################
 def test_power_all_cases():
     '''
@@ -1323,7 +1328,7 @@ def power_all_cases(op):
     '''
     Checks all cases for the value and derivatives of power-like
     operator op (op is typically the built-in pow(), or math.pow()).
-    
+
     Checks only the details of special results like 0, 1 or NaN).
 
     Different cases for the value of x**p and its derivatives are
@@ -1345,9 +1350,9 @@ def power_all_cases(op):
     integer = ufloat(-3, 0)
     non_int_larger_than_one = ufloat(3.1, 0.01)
     positive_smaller_than_one = ufloat(0.3, 0.01)
-    
+
     ## negative**integer
-    
+
     result = op(negative, integer)
     assert not isnan(result.derivatives[negative])
     assert isnan(result.derivatives[integer])
@@ -1360,7 +1365,7 @@ def power_all_cases(op):
     result = op(negative, zero)
     assert result.derivatives[negative] == 0
     assert isnan(result.derivatives[zero])
-    
+
     ## negative**non-integer
 
     ## zero**...
@@ -1385,7 +1390,7 @@ def power_all_cases(op):
     result = op(zero, zero2)
     assert result.derivatives[zero] == 0
     assert isnan(result.derivatives[zero2])
-    
+
     ## positive**...: this is a quite regular case where the value and
     ## the derivatives are all defined.
 
@@ -1401,9 +1406,9 @@ def power_all_cases(op):
     assert not isnan(result.derivatives[positive])
     assert not isnan(result.derivatives[negative])
 
-    
+
 ###############################################################################
-    
+
 def test_power_special_cases():
     '''
     Checks special cases of x**p.
@@ -1415,7 +1420,7 @@ def test_power_special_cases():
 
     positive = ufloat(0.3, 0.01)
     negative = ufloat(-0.3, 0.01)
-    
+
     # http://stackoverflow.com/questions/10282674/difference-between-the-built-in-pow-and-math-pow-for-floats-in-python
 
     try:
@@ -1443,12 +1448,12 @@ def test_power_special_cases():
         pass
     else:
         raise Exception('A proper exception should have been raised')
-    
+
 def power_special_cases(op):
     '''
     Checks special cases of the uncertainty power operator op (where
     op is typically the built-in pow or uncertainties.umath.pow).
-        
+
     The values x = 0, x = 1 and x = NaN are special, as are null,
     integral and NaN values of p.
     '''
@@ -1461,17 +1466,19 @@ def power_special_cases(op):
     assert op(zero, p) == 0
 
     # The outcome of 1**nan and nan**0 was undefined before Python
-    # 2.6 (http://docs.python.org/library/math.html#math.pow).
-        
+    # 2.6 (http://docs.python.org/library/math.html#math.pow):
+    assert op(float('nan'), zero) == 1.0
+    assert op(one, float('nan')) == 1.0
+
     # …**0 == 1.0:
-    assert op(p, 0) == 1.0        
+    assert op(p, 0) == 1.0
     assert op(zero, 0) == 1.0
     assert op((-p), 0) == 1.0
     # …**zero:
-    assert op((-10.3), zero) == 1.0        
-    assert op(0, zero) == 1.0        
+    assert op((-10.3), zero) == 1.0
+    assert op(0, zero) == 1.0
     assert op(0.3, zero) == 1.0
-    assert op((-p), zero) == 1.0        
+    assert op((-p), zero) == 1.0
     assert op(zero, zero) == 1.0
     assert op(p, zero) == 1.0
 
@@ -1490,14 +1497,14 @@ def power_special_cases(op):
     assert op(1., (-p)) == 1.0
     assert op(1., zero) == 1.0
     assert op(1., p) == 1.0
-        
+
 
 def test_power_wrt_ref():
     '''
     Checks special cases of the built-in pow() power operator.
     '''
     power_wrt_ref(pow, pow)
-    
+
 def power_wrt_ref(op, ref_op):
     '''
     Checks special cases of the uncertainty power operator op (where
@@ -1505,7 +1512,7 @@ def power_wrt_ref(op, ref_op):
     comparing its results to the reference power operator ref_op
     (which is typically the built-in pow or math.pow).
     '''
-    
+
     # Negative numbers with uncertainty can be exponentiated to an
     # integral power:
     assert op(ufloat(-1.1, 0.1), -9).nominal_value == ref_op(-1.1, -9)
@@ -1514,7 +1521,7 @@ def power_wrt_ref(op, ref_op):
     # as numbers with uncertainties:
     assert op(ufloat(-1, 0), 9) == ref_op(-1, 9)
     assert op(ufloat(-1.1, 0), 9) == ref_op(-1.1, 9)
-    
+
 
 ###############################################################################
 
@@ -1558,16 +1565,21 @@ def test_format():
     '''Test the formatting of numbers with uncertainty.'''
 
     # The way NaN is formatted with F, E and G depends on the version
-    # of Python (NAN for Python 2.7+):
+    # of Python (NAN for Python 2.5+ at least):
     NaN_EFG = '%F' % float('nan')
-    
+
+    # !! The way NaN is formatted with F, E and G might depend on the
+    # version of Python, if it is like NaN (could be tested with
+    # Python 2.3 or 2.4 vs Python 2.7):
+    Inf_EFG = '%F' % float('inf')
+
     # Tests of each point of the docstring of
     # AffineScalarFunc.__format__() in turn, mostly in the same order.
 
     # The LaTeX tests do not use the customization of
     # uncertainties.GROUP_SYMBOLS and uncertainties.EXP_PRINT: this
     # way, problems in the customization themselves are caught.
-    
+
     tests = {  # (Nominal value, uncertainty): {format: result,...}
 
         # Usual float formatting, and individual widths, etc.:
@@ -1578,12 +1590,12 @@ def test_format():
             '11.3e': '  3.142e+00+/-  0.000e+00',  # Duplicated exponent
             '0.4e': '3.1415e+00+/-0.0000e+00'  # Forced double exponent
         },
-        
+
         # Full generalization of float formatting:
         (3.1415, 0.0001): {
             '+09.2uf': '+03.14150+/-000.00010'
         },
-        
+
         # Number of digits of the uncertainty fixed:
         (123.456789, 0.00123): {
             '.1uf': '123.457+/-0.001',
@@ -1614,7 +1626,7 @@ def test_format():
         (23456.789123, 1234.56789123): {
             '.6gS': '23456.8(1234.6)'
         },
-        
+
         # Test of the various float formats: the nominal value should
         # have a similar representation as if it were directly
         # represented as a float:
@@ -1634,13 +1646,13 @@ def test_format():
         (1234567.89, 43): {  # Case where g triggers the exponent notation
             'g': '(1.23457+/-0.00004)e+06',
             'G': '(1.23457+/-0.00004)E+06'
-        },        
+        },
 
 
         (3.1415, 0.0001): {
             '+09.2uf': '+03.14150+/-000.00010'
             },
-        
+
         (1234.56789, 0.1): {
             '.0f': '(1234+/-0.)',  # Approximate error indicated with "."
             'e': '(1.23456+/-0.00010)e+03',
@@ -1648,7 +1660,7 @@ def test_format():
             'f': '1234.57+/-0.10',
             'F': '1234.57+/-0.10',
             'f': '1234.57+/-0.10',
-            'F': '1234.57+/-0.10',            
+            'F': '1234.57+/-0.10',
             '%': '123457+/-10%'
         },
 
@@ -1662,14 +1674,14 @@ def test_format():
             '.1u%S': '42.0(5)%',
             '%P': u'(42.0±0.5)%'
         },
-        
+
         # Particle Data Group automatic convention, including limit cases:
         (1.2345678, 0.354): {'': '1.23+/-0.35'},
         (1.2345678, 0.3549): {'': '1.23+/-0.35'},
         (1.2345678, 0.355): {'': '1.2+/-0.4'},
         (1.5678, 0.355): {'': '1.6+/-0.4'},
         (1.2345678, 0.09499): {'': '1.23+/-0.09'},
-        (1.2345678, 0.095): {'': '1.23+/-0.10'},        
+        (1.2345678, 0.095): {'': '1.23+/-0.10'},
 
         # Automatic extension of the uncertainty up to the decimal
         # point:
@@ -1688,13 +1700,13 @@ def test_format():
         },
         (-123.456, 0.123): {
             'S': '-123.46(12)',
-            '.1ufS': '-123.5(1)',            
+            '.1ufS': '-123.5(1)',
             '.2ufS': '-123.46(12)',
             '.3ufS': '-123.456(123)',
         },
         (-123.456, 0.567): {
             'S': '-123.5(6)',
-            '.1ufS': '-123.5(6)',            
+            '.1ufS': '-123.5(6)',
             '.2ufS': '-123.46(57)',
             '.3ufS': '-123.456(567)',
         },
@@ -1703,7 +1715,7 @@ def test_format():
             # exact:
             '.2fS': '-123.46(0.00)'
         },
-        
+
         # LaTeX notation:
         #
         (1234.56789, 0.1): {
@@ -1712,7 +1724,7 @@ def test_format():
             'fL': '1234.57 \pm 0.10',
             'FL': '1234.57 \pm 0.10',
             'fL': '1234.57 \pm 0.10',
-            'FL': '1234.57 \pm 0.10',            
+            'FL': '1234.57 \pm 0.10',
             '%L': r'\left(123457 \pm 10\right) \%'
         },
         #
@@ -1734,7 +1746,7 @@ def test_format():
             '12.2gPL': ur'  -1.2×10⁻¹²±           0',
             '13S': '  -1.2(0)e-12',
             '10P': u'-1.2×10⁻¹²±         0',
-            'L': r'\left(-1.2 \pm 0\right) \times 10^{-12}',            
+            'L': r'\left(-1.2 \pm 0\right) \times 10^{-12}',
             # No factored exponent, LaTeX
             '1L': r'-1.2 \times 10^{-12} \pm 0',
             'SL': r'-1.2(0) \times 10^{-12}',
@@ -1743,7 +1755,7 @@ def test_format():
 
         # Python 3.2 and 3.3 give 1.4e-12*1e+12 = 1.4000000000000001
         # instead of 1.4 for Python 3.1. The problem does not appear
-        # with 1.2, so 1.2 is used.        
+        # with 1.2, so 1.2 is used.
         (-1.2e-12, float('nan')): {
             '.2uG': '(-1.2+/-%s)E-12' % NaN_EFG,  # u ignored, format used
             '15GS': '  -1.2(%s)E-12' % NaN_EFG,
@@ -1766,7 +1778,7 @@ def test_format():
             '.1e': '(3.1+/-0.0)e-10',
             '.1eS': '3.1(0.0)e-10'
         },
-    
+
         # Some special cases:
         (1, float('nan')): {
             'g': '1+/-nan',
@@ -1785,21 +1797,25 @@ def test_format():
             # actually interpreted as str(), and that str() does not
             # have to behave like g ('{}'.format(1.234567890123456789)
             # and '{:g}'.format(1.234567890123456789) are different).
-            '': '1.0+/-nan'            
+            '': '1.0+/-nan',
+            # This is ugly, but consistent with
+            # '{:+05}'.format(float('nan')) and format(1.) (which
+            # differs from format(1)!):
+            '+05': '+01.0+/-00nan'
         },
-        
+
         (9.9, 0.1): {
             '.1ue': '(9.9+/-0.1)e+00',
             '.0fS': '10(0.)'
         },
-        
+
         (9.99, 0.1): {
              # The precision has an effect on the exponent, like for
              # floats:
             '.2ue': '(9.99+/-0.10)e+00',  # Same exponent as for 9.99 alone
             '.1ue': '(1.00+/-0.01)e+01'  # Same exponent as for 9.99 alone
         },
-        
+
         # 0 uncertainty: nominal value displayed like a float:
         (1.2345, 0): {
             '.2ue': '(1.23+/-0)e+00',
@@ -1810,7 +1826,16 @@ def test_format():
             'g': '1.2345+/-0',
             '': '1.2345+/-0'
         },
-        
+
+        # Alignment and filling characters (supported in Python 2.6+):
+        (3.1415e10, 0): {
+            '<15': '31415000000.0  +/-0              ',
+            '<20S': '31415000000.0(0)    ',
+            # Trying to trip the format parsing with a fill character
+            # which is an alignment character:
+            '=>15': '==31415000000.0+/-==============0'
+        },
+
         (1234.56789, 0): {
             '1.2ue': '1.23e+03+/-0',  # u ignored
             '1.2e': '1.23e+03+/-0',
@@ -1824,7 +1849,7 @@ def test_format():
 
         (1e5, 0): {
             'g': '100000+/-0'
-        }, 
+        },
         (1e6, 0): {
             # A default precision of 6 is used because the uncertainty
             # cannot be used for defining a default precision (it does
@@ -1860,6 +1885,7 @@ def test_format():
             '13.6G': '  1.20000E-34+/-  0.00000E-34',
             '.6GL': r'\left(1.20000 \pm 0.00000\right) \times 10^{-34}'
         },
+
         (float('nan'), 100): {  # NaN *nominal value*
             '': 'nan+/-100.0',  # Like '{}'.format(100.)
             'g': 'nan+/-100',  # Like '{:g}'.format(100.)
@@ -1875,7 +1901,7 @@ def test_format():
             '.1E': '(%s+/-1.0)E+08' % NaN_EFG,
             '.1ue': '(nan+/-1)e+08',
             '10.1e': '       nan+/-   1.0e+08'  # 'nane+08' would be strange
-        },                
+        },
         (float('nan'), 123456789): {  # NaN *nominal value*
             '': 'nan+/-123456789.0',  # Similar to '{}'.format(123456789.)
             'g': '(nan+/-1.23457)e+08',  # Similar to '{:g}'.format(123456789.)
@@ -1885,20 +1911,89 @@ def test_format():
             '.1ueL': r'\left(\mathrm{nan} \pm 1\right) \times 10^{8}',
             '10.1e': '       nan+/-   1.2e+08',
             '10.1eL': r'\mathrm{nan} \pm 1.2 \times 10^{8}'
-        },        
+        },
         (float('nan'), float('nan')): {  # *Double* NaN
             '': 'nan+/-nan',
             '.1e': 'nan+/-nan',
             '.1E': '%s+/-%s' % (NaN_EFG, NaN_EFG),
             '.1ue': 'nan+/-nan',
             'EL': r'\mathrm{%s} \pm \mathrm{%s}' % (NaN_EFG, NaN_EFG)
+        },
+
+        (float('inf'), 100): {  # Inf *nominal value*
+            '': 'inf+/-100.0',  # Like '{}'.format(100.)
+            'g': 'inf+/-100',  # Like '{:g}'.format(100.)
+            '.1e': '(inf+/-1.0)e+02',  # Similar to 1±inf
+            '.1E': '(%s+/-1.0)E+02' % Inf_EFG,
+            '.1ue': '(inf+/-1)e+02',
+            '10.1e': '       inf+/-   1.0e+02'
+        },
+        (float('inf'), 1e8): {  # Inf *nominal value*
+            '': 'inf+/-100000000.0',  # Like '{}'.format(1e8)
+            'g': '(inf+/-1)e+08',  # Like '{:g}'.format(1e8)
+            '.1e': '(inf+/-1.0)e+08',
+            '.1E': '(%s+/-1.0)E+08' % Inf_EFG,
+            '.1ue': '(inf+/-1)e+08',
+            '10.1e': '       inf+/-   1.0e+08'  # 'infe+08' would be strange
+        },
+        (float('inf'), 123456789): {  # Inf *nominal value*
+            '': 'inf+/-123456789.0',  # Similar to '{}'.format(123456789.)
+            'g': '(inf+/-1.23457)e+08',  # Similar to '{:g}'.format(123456789.)
+            '.1e': '(inf+/-1.2)e+08',
+            '.1E': '(%s+/-1.2)E+08' % Inf_EFG,
+            '.1ue': '(inf+/-1)e+08',
+            '.1ueL': r'\left(\infty \pm 1\right) \times 10^{8}',
+            '10.1e': '       inf+/-   1.2e+08',
+            '10.1eL': r'    \infty \pm 1.2 \times 10^{8}'
+        },
+        (float('inf'), float('inf')): {  # *Double* Inf
+            '': 'inf+/-inf',
+            '.1e': 'inf+/-inf',
+            '.1E': '%s+/-%s' % (Inf_EFG, Inf_EFG),
+            '.1ue': 'inf+/-inf',
+            'EL': r'\infty \pm \infty'
+        },
+
+        # Like the tests for +infinity, but for -infinity:
+        (float('-inf'), 100): {  # Inf *nominal value*
+            '': '-inf+/-100.0',  # Like '{}'.format(100.)
+            'g': '-inf+/-100',  # Like '{:g}'.format(100.)
+            '.1e': '(-inf+/-1.0)e+02',  # Similar to 1±inf
+            '.1E': '(-%s+/-1.0)E+02' % Inf_EFG,
+            '.1ue': '(-inf+/-1)e+02',
+            '10.1e': '      -inf+/-   1.0e+02'
+        },
+        (float('-inf'), 1e8): {  # Inf *nominal value*
+            '': '-inf+/-100000000.0',  # Like '{}'.format(1e8)
+            'g': '(-inf+/-1)e+08',  # Like '{:g}'.format(1e8)
+            '.1e': '(-inf+/-1.0)e+08',
+            '.1E': '(-%s+/-1.0)E+08' % Inf_EFG,
+            '.1ue': '(-inf+/-1)e+08',
+            '10.1e': '      -inf+/-   1.0e+08'  # 'infe+08' would be strange
+        },
+        (float('-inf'), 123456789): {  # Inf *nominal value*
+            '': '-inf+/-123456789.0',  # Similar to '{}'.format(123456789.)
+            'g': '(-inf+/-1.23457)e+08',  # Similar to '{:g}'.format(123456789.)
+            '.1e': '(-inf+/-1.2)e+08',
+            '.1E': '(-%s+/-1.2)E+08' % Inf_EFG,
+            '.1ue': '(-inf+/-1)e+08',
+            '.1ueL': r'\left(-\infty \pm 1\right) \times 10^{8}',
+            '10.1e': '      -inf+/-   1.2e+08',
+            '10.1eL': r'   -\infty \pm 1.2 \times 10^{8}'
+        },
+        (float('-inf'), float('inf')): {  # *Double* Inf
+            '': '-inf+/-inf',
+            '.1e': '-inf+/-inf',
+            '.1E': '-%s+/-%s' % (Inf_EFG, Inf_EFG),
+            '.1ue': '-inf+/-inf',
+            'EL': r'-\infty \pm \infty'
         }
-        
+
     }
 
     # ',' format option: introduced in Python 2.7
     if sys.version_info >= (2, 7):
-        
+
         tests.update({
             (1234.56789, 0.012): {
                 ',.1uf': '1,234.57+/-0.01'
@@ -1909,13 +2004,13 @@ def test_format():
                 ',.4f': '123,456.7891+/-1,234.5678'
                 }
         })
-        
+
     # True if we can detect that the Jython interpreter is running this code:
     try:
         jython_detected = sys.subversion[0] == 'Jython'
     except AttributeError:
         jython_detected = False
-    
+
     for (values, representations) in tests.iteritems():
 
         value = ufloat(*values)
@@ -1923,13 +2018,13 @@ def test_format():
         for (format_spec, result) in representations.iteritems():
 
             ## print "FORMATTING %s WITH '%s'" % (repr(value), format_spec)
-            
+
             # Jython 2.5.2 does not always represent NaN as nan or NAN
             # in the CPython way: for example, '%.2g' % float('nan')
             # is '\ufffd'. The test is skipped, in this case:
             if jython_detected and isnan(value.std_dev):
                 continue
-            
+
             # Call that works with Python < 2.6 too:
             representation = value.format(format_spec)
 
@@ -1947,7 +2042,7 @@ def test_format():
                     'Empty format should give the same thing as str():'
                     ' %s obtained instead of %s'
                     % (representation, str(value)))
-            
+
             # Parsing back into a number with uncertainty (unless the
             # LaTeX or comma notation is used):
             if (not set(format_spec).intersection('L,*%')  # * = fill with *
@@ -1955,7 +2050,7 @@ def test_format():
                 and '0nan' not in representation.lower()
                 # Specific case:
                 and '=====' not in representation):
-                
+
                 value_back = ufloat_fromstr(representation)
 
                 # The original number and the new one should be consistent
@@ -1978,7 +2073,8 @@ def test_format():
 
                 except AssertionError:
                     # !! The following string formatting requires
-                    # str() to work (to not raise an exception):
+                    # str() to work (to not raise an exception) on the
+                    # values (which have a non-standard class):
                     raise AssertionError(
                         'Original value %s and value %s parsed from %r'
                         ' (obtained through format specification %r)'
@@ -1992,7 +2088,7 @@ def test_unicode_format():
 
     assert isinstance(u'Résultat = %s' % x.format(''), unicode)
     assert isinstance(u'Résultat = %s' % x.format('P'), unicode)
-    
+
 ###############################################################################
 
 # The tests below require NumPy, which is an optional package:
@@ -2010,7 +2106,7 @@ else:
         Two independent AffineScalarFunc objects are deemed equal if
         both their nominal value and uncertainty are equal (up to the
         given precision).
-        
+
         m1, m2 -- NumPy matrices.
         precision -- precision passed through to
         uncertainties.test_uncertainties.numbers_close().
@@ -2036,15 +2132,15 @@ else:
                 return False
         return True
 
-    
+
     def test_numpy_comparison():
         "Comparison with a Numpy array."
 
         x = ufloat(1, 0.1)
-        
+
         # Comparison with a different type:
         assert x != [x, x]
-        
+
         # NumPy arrays can be compared, through element-wise
         # comparisons.  Numbers with uncertainties should yield the
         # same kind of results as pure floats (i.e., a NumPy array,
@@ -2061,7 +2157,7 @@ else:
         assert len(x == numpy.array([x, x, x])) == 3
         assert len(numpy.array([x, x, x]) == x) == 3
         assert numpy.all(x == numpy.array([x, x, x]))
-        
+
         # Inequalities:
         assert len(x < numpy.arange(10)) == 10
         assert len(numpy.arange(10) > x) == 10
@@ -2091,7 +2187,7 @@ else:
         u2, = uncertainties.correlated_values([1], cov)
         expr = 2*u2  # Calculations with u2 should be possible, like with u
 
-        ####################    
+        ####################
 
         # Covariances between output and input variables:
 
@@ -2105,7 +2201,7 @@ else:
         assert arrays_close(
             numpy.array([v.std_dev**2 for v in (x, y, z)]),
             numpy.array(covs).diagonal())
-        
+
         # "Inversion" of the covariance matrix: creation of new
         # variables:
         (x_new, y_new, z_new) = uncertainties.correlated_values(
@@ -2158,7 +2254,7 @@ else:
         Test through their correlation matrix (instead of the
         covariance matrix).
         '''
-        
+
         x = ufloat(1, 0.1)
         y = ufloat(2, 0.3)
         z = -3*x+y
@@ -2166,7 +2262,7 @@ else:
         cov_mat = uncertainties.covariance_matrix([x, y, z])
 
         std_devs = numpy.sqrt(numpy.array(cov_mat).diagonal())
-        
+
         corr_mat = cov_mat/std_devs/std_devs[numpy.newaxis].T
 
         # We make sure that the correlation matrix is indeed diagonal:
@@ -2181,7 +2277,7 @@ else:
         std_devs = [v.std_dev for v in (x, y, z)]
         x2, y2, z2 = uncertainties.correlated_values_norm(
             zip(nominal_values, std_devs), corr_mat)
-        
+
         # arrays_close() is used instead of numbers_close() because
         # it compares uncertainties too:
 
@@ -2197,4 +2293,3 @@ else:
         assert arrays_close(
             numpy.array(cov_mat),
             numpy.array(uncertainties.covariance_matrix([x2, y2, z2])))
-

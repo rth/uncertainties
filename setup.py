@@ -42,7 +42,7 @@ else:
 # Common options for distutils/setuptools's setup():
 setup_options = dict(
     name='uncertainties',
-    version='2.4.7',
+    version='2.4.7.1',
     author='Eric O. LEBIGOT (EOL)',
     author_email='eric.lebigot@normalesup.org',
     url='http://pythonhosted.org/uncertainties/',
@@ -160,6 +160,7 @@ Version history
 
 Main changes:
 
+- 2.4.7: String formatting now works for ``(-)inf+/-...`` numbers.
 - 2.4.5: String formatting now works for ``NaN+/-...`` numbers.
 - 2.4.4: The documentation license now allows its commercial use.
 - 2.4.2: `NumPy 1.8 compatibility <https://github.com/numpy/numpy/issues/4063>`_.

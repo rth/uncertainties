@@ -1987,7 +1987,18 @@ def test_format():
             '.1E': '-%s+/-%s' % (Inf_EFG, Inf_EFG),
             '.1ue': '-inf+/-inf',
             'EL': r'-\infty \pm \infty'
+        },
+
+        # The Particle Data Group convention trumps the "at least one
+        # digit past the decimal point" for Python floats, but only
+        # with a non-zero uncertainty:
+        (724.2, 26.4): {
+            '': '724+/-26'
+        },
+        (724, 0): {
+            '': '724.0+/-0'
         }
+
 
     }
 

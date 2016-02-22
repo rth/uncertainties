@@ -1155,10 +1155,10 @@ def PDG_precision(std_dev):
     # Furthermore, 10**(-exponent) is not used because the exponent
     # range for very small and very big floats is generally different.
     if exponent >= 0:
+        # The -2 here means "take two additional digits":
         (exponent, factor) = (exponent-2, 1)
     else:
         (exponent, factor) = (exponent+1, 1000)
-
     digits = int(std_dev/10.**exponent*factor)  # int rounds towards zero
 
     # Rules:
@@ -2403,8 +2403,9 @@ class AffineScalarFunc(object):
             #
             # The 1 for the None pres_type represents "at least one
             # digit past the decimal point"
-            # (https://docs.python.org/3.4/library/string.html#format-specification-mini-language):
-            if pres_type is None:
+            # (https://docs.python.org/3.4/library/string.html#format-specification-mini-language). This
+            # is only applied for null uncertainties:
+            if pres_type is None and not std_dev:
                 min_prec = 1
             else:
                 min_prec = 0
@@ -2414,16 +2415,16 @@ class AffineScalarFunc(object):
 
         ########################################
 
-        ## print (
-        ##     "FORMAT_NUM parameters: nom_val_mantissa={},"
-        ##     " std_dev_mantissa={}, common_exp={},"
-        ##     " match.groupdict()={}, prec={}, main_pres_type={},"
-        ##     " options={}".format(
-        ##     nom_val_mantissa, std_dev_mantissa, common_exp,
-        ##     match.groupdict(),
-        ##     prec,
-        ##     main_pres_type,
-        ##     options))
+        # print (
+        #     "FORMAT_NUM parameters: nom_val_mantissa={},"
+        #     " std_dev_mantissa={}, common_exp={},"
+        #     " match.groupdict()={}, prec={}, main_pres_type={},"
+        #     " options={}".format(
+        #     nom_val_mantissa, std_dev_mantissa, common_exp,
+        #     match.groupdict(),
+        #     prec,
+        #     main_pres_type,
+        #     options))
 
         # Final formatting:
         return format_num(nom_val_mantissa, std_dev_mantissa, common_exp,

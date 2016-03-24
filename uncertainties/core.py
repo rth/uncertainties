@@ -2836,7 +2836,9 @@ def parse_error_in_parentheses(representation):
         uncert_int = '1'  # The other parts of the uncertainty are None
 
     # Do we have a fully explicit uncertainty?
-    if uncert_dec is not None or uncert in {'nan', 'NAN', 'inf', 'INF'}:
+    #
+    # !!! Python 2.7+: in {'nan',...} is faster (x10)
+    if uncert_dec is not None or uncert in ['nan', 'NAN', 'inf', 'INF']:
         uncert_value = float(uncert)
     else:
         # uncert_int represents an uncertainty on the last digits:
@@ -3011,7 +3013,7 @@ def ufloat_fromstr(representation, tag=None):
 
     return ufloat(nominal_value, std_dev, tag)
 
-def _ufloat_obsolete(representation, tag=None):
+def ufloat_obsolete(representation, tag=None):
     '''
     Legacy version of ufloat(). Will eventually be removed.
 
@@ -3073,14 +3075,20 @@ def ufloat(nominal_value, std_dev=None, tag=None):
     # uncertainty), and string that cannot be converted through
     # float():
     except (TypeError, ValueError):
-        # Obsolete, two-argument call:
-        deprecation('either use ufloat(nominal_value, std_dev),'
-                    ' ufloat(nominal_value, std_dev, tag), or the'
-                    ' ufloat_fromstr() function, for string representations.')
 
         if tag is not None:
             tag_arg = tag  # tag keyword used:
         else:
             tag_arg = std_dev  # 2 positional arguments form
 
-        return _ufloat_obsolete(nominal_value, tag_arg)
+        try:
+            final_ufloat = ufloat_obsolete(nominal_value, tag_arg)
+        except:  # The input is incorrect, not obsolete
+            raise
+        else:
+            # Obsolete, two-argument call:
+            deprecation(
+                'either use ufloat(nominal_value, std_dev),'
+                ' ufloat(nominal_value, std_dev, tag), or the'
+                ' ufloat_fromstr() function, for string representations.')
+            return final_ufloat

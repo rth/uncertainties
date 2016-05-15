@@ -1958,14 +1958,31 @@ def test_format():
 
         # More NaN and infinity, in particular with LaTeX and various
         # options:
-        (-float('inf'), float('inf')): {
+        (float('-inf'), float('inf')): {
             'S': '-inf(inf)',
             'LS': '-\infty(\infty)',
             'L': '-\infty \pm \infty',
             'LP': u'-\infty±\infty',
-            # The following is consistent with Python's
-            # "{:020}".format(float("-inf")) ('-0000000000000000inf'):
-            '020S': '-00000000000inf(inf)'
+            # The following is consistent with Python's own
+            # formatting, which depends on the version of Python:
+            # formatting float("-inf") with format(..., "020") gives
+            # '-0000000000000000inf' with Python 2.7, but
+            # '-00000000000000.0inf' with Python 2.6. However, Python
+            # 2.6 gives the better, Python 2.7 form when format()ting
+            # with "020g" instead, so this formatting would be better,
+            # in principle, and similarly for "%020g" % ... Thus,
+            # Python's format() breaks the official rule according to
+            # which no format type is equivalent to "g", for
+            # floats. If the better behavior was needed, internal
+            # formatting could in principle force the "g" formatting
+            # type when none is given; however, Python does not
+            # actually fully treat the none format type in the same
+            # was as the "g" format, so this solution cannot be used,
+            # as it would break other formatting behaviors in this
+            # code. It is thus best to mimic the native behavior of
+            # none type formatting (even if it does not look so good
+            # in Python 2.6).
+            '020S': '%s(inf)' % format(float("-inf"), "015")
         },
         (-float('nan'), float('inf')): {
             'S': 'nan(inf)',
@@ -2012,7 +2029,8 @@ def test_format():
             # Jython 2.5.2 does not always represent NaN as nan or NAN
             # in the CPython way: for example, '%.2g' % float('nan')
             # is '\ufffd'. The test is skipped, in this case:
-            if jython_detected and isnan(value.std_dev):
+            if jython_detected and (
+                    isnan(value.std_dev) or isnan(value.nominal_value)):
                 continue
 
             # Call that works with Python < 2.6 too:

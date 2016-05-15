@@ -1838,7 +1838,11 @@ class AffineScalarFunc(object):
 
         # Effective format presentation type: f, e, g, etc., or None,
         # like in
-        # https://docs.python.org/3.4/library/string.html#format-specification-mini-language.
+        # https://docs.python.org/3.4/library/string.html#format-specification-mini-language. Contrary
+        # to what is written in the documentation, it is not true that
+        # None is "the same as 'g'": "{}".format() and "{:g}" do not
+        # give the same result, on 31415000000.0. None is thus kept as
+        # is instead of being replaced by "g".
         pres_type = match.group('type') or None
 
         # Shortcut:
@@ -1874,7 +1878,7 @@ class AffineScalarFunc(object):
             pres_type = 'f'
             options.add('%')
 
-        # At this point, pres_type is in eEfFgG (not None, not %).
+        # At this point, pres_type is in eEfFgG or None (not %).
 
         ########################################
 

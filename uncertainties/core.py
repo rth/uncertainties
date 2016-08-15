@@ -1,5 +1,8 @@
 # coding=utf-8
 
+# !!!!!!!!!! CHeck all calls to AffineScalarFunc in all
+# programs, including this one, and adapt to the new interface.
+
 """
 Main module for the uncertainties package, with internals.
 """
@@ -20,7 +23,7 @@ import math
 from math import sqrt, log, isnan, isinf  # Optimization: no attribute look-up
 
 try:
-    from math import isinfinite  # Python 3.2+
+    from math import isinfinite  # !! Python 3.2+
 except ImportError:
     isinfinite = lambda x: isinf(x) or isnan(x)
 
@@ -29,6 +32,7 @@ import warnings
 import itertools
 import inspect
 import numbers
+import collections
 
 # Attributes that are always exported (some other attributes are
 # exported only if the NumPy module is available...):
@@ -59,7 +63,6 @@ __all__ = [
 
     ]
 
-
 ###############################################################################
 
 def set_doc(doc_string):
@@ -81,6 +84,7 @@ FLOAT_LIKE_TYPES = (numbers.Number,)
 CONSTANT_TYPES = FLOAT_LIKE_TYPES+(complex,)
 
 ###############################################################################
+
 # Utility for issuing deprecation warnings
 
 def deprecation(message):
@@ -174,7 +178,9 @@ else:
 
         # Representation of the initial correlated values:
         values_funcs = tuple(
-            AffineScalarFunc(value, dict(zip(variables, coords)))
+            AffineScalarFunc(
+                value,
+                LinearCombination(dict(itertools.izip(variables, coords))))
             for (coords, value) in zip(transform, nom_values))
 
         return values_funcs
@@ -223,7 +229,7 @@ def to_affine_scalar(x):
     (AffineScalarFunc), unless it is already an AffineScalarFunc (in
     which case x is returned unchanged).
 
-    Raises an exception unless 'x' belongs to some specific classes of
+    Raises an exception unless x belongs to some specific classes of
     objects that are known not to depend on AffineScalarFunc objects
     (which then cannot be considered as constants).
     """
@@ -233,7 +239,7 @@ def to_affine_scalar(x):
 
     if isinstance(x, CONSTANT_TYPES):
         # No variable => no derivative:
-        return AffineScalarFunc(x, {})
+        return AffineScalarFunc(x, LinearCombination({}))
 
     # Case of lists, etc.
     raise NotUpcast("%s cannot be converted to a number with"
@@ -241,7 +247,7 @@ def to_affine_scalar(x):
 
 # Step constant for numerical derivatives in
 # partial_derivative(). Value chosen to as to get better numerical
-# result:
+# results:
 try:
     STEP_SIZE = sqrt(sys.float_info.epsilon)
 except AttributeError:
@@ -604,12 +610,13 @@ def wrap(f, derivatives_args=[], derivatives_kwargs={}):
 
         # The arguments that contain an uncertainty (AffineScalarFunc
         # objects) are gathered, as positions or names; they will be
-        # replaced by simple floats.
+        # replaced by their nominal value in order to calculate
+        # the necessary derivatives of f.
 
         pos_w_uncert = [index for (index, value) in enumerate(args)
                         if isinstance(value, AffineScalarFunc)]
-        names_w_uncert = set(key for (key, value) in kwargs.iteritems()
-                             if isinstance(value, AffineScalarFunc))
+        names_w_uncert = [key for (key, value) in kwargs.iteritems()
+                          if isinstance(value, AffineScalarFunc)]
 
         ########################################
         # Value of f() at the nominal value of the arguments with
@@ -642,7 +649,8 @@ def wrap(f, derivatives_args=[], derivatives_kwargs={}):
         # values with uncertainty are modified:
 
         # The original values with uncertainties are needed: they are
-        # saved in the following dictionary:
+        # saved in the following dictionary (which only contains
+        # values with uncertainty):
 
         kwargs_uncert_values = {}
 
@@ -666,33 +674,19 @@ def wrap(f, derivatives_args=[], derivatives_kwargs={}):
 
         ########################################
 
-        # The chain rule will be applied.  In the case of numerical
-        # derivatives, this method gives a better-controlled numerical
-        # stability than numerically calculating the partial
-        # derivatives through '[f(x + dx, y + dy, ...) -
-        # f(x,y,...)]/da' where dx, dy,... are calculated by varying
-
-        # 'a' by 'da'.  In fact, this allows the program to control
-        # how big the dx, dy, etc. are, which is numerically more
-        # precise.
-
-        ########################################
-
-        # Calculation of the derivatives with respect to the variables
-        # of f that have a number with uncertainty.
-
-        # Mappings of each relevant argument reference (numerical
-        # index in args, or name in kwargs to the value of the
-        # corresponding partial derivative of f (only for those
-        # arguments that contain a number with uncertainty).
-
-        derivatives_num_args = {}
+        # Calculation of the linear part of the function value,
+        # defined by (coefficient, argument) pairs, where 'argument'
+        # is an AffineScalarFunc (for all AffineScalarFunc found as
+        # argument of f):
+        linear_part = []
 
         for pos in pos_w_uncert:
-            derivatives_num_args[pos] = derivatives_args_index[pos](
-                *args_values, **kwargs)
+            linear_part.append((
+                # Coefficient:
+                derivatives_args_index[pos](*args_values, **kwargs),
+                # Linear part of the AffineScalarFunc expression:
+                args[pos]._linear_part))
 
-        derivatives_num_kwargs = {}
         for name in names_w_uncert:
 
             # Optimization: caching of the automatic numerical
@@ -705,42 +699,16 @@ def wrap(f, derivatives_args=[], derivatives_kwargs={}):
                 # Derivative never needed before:
                 partial_derivative(f, name))
 
-            derivatives_num_kwargs[name] = derivative(
-                *args_values, **kwargs)
+            linear_part.append((
+                # Coefficient:
+                derivative(*args_values, **kwargs),
+                # Linear part of the AffineScalarFunc expression:
+                kwargs_uncert_values[name]._linear_part))
 
-        ########################################
-        # Calculation of the derivative of f with respect to all the
-        # variables (Variable objects) involved.
-
-        # Involved variables (Variable objects):
-        variables = set()
-
-        for expr in itertools.chain(
-            (args[index] for index in pos_w_uncert),  # From args
-            kwargs_uncert_values.itervalues()):  # From kwargs
-
-            # !! In Python 2.7+: |= expr.derivatives.viewkeys()
-            variables |= set(expr.derivatives)
-
-        # Initial value for the chain rule (is updated below):
-        # !! In Python 2.7+: dictionary comprehension
-        derivatives_wrt_vars = dict((var, 0.) for var in variables)
-
-        ## The chain rule is used...
-
-        # ... on args:
-        for (pos, f_derivative) in derivatives_num_args.iteritems():
-            for (var, arg_derivative) in args[pos].derivatives.iteritems():
-                derivatives_wrt_vars[var] += f_derivative * arg_derivative
-        # ... on kwargs:
-        for (name, f_derivative) in derivatives_num_kwargs.iteritems():
-            for (var, arg_derivative) in (kwargs_uncert_values[name]
-                                          .derivatives.iteritems()):
-                derivatives_wrt_vars[var] += f_derivative * arg_derivative
-
-
-        # The function now returns an AffineScalarFunc object:
-        return AffineScalarFunc(f_nominal_value, derivatives_wrt_vars)
+        # The function now returns the necessary linear approximation
+        # to the function:
+        return AffineScalarFunc(
+            f_nominal_value, LinearCombination(linear_part))
 
     f_with_affine_output = set_doc("""\
     Version of %s(...) that returns an affine approximation
@@ -762,6 +730,7 @@ def wrap(f, derivatives_args=[], derivatives_kwargs={}):
     f_with_affine_output.name = f.__name__
 
     return f_with_affine_output
+
 
 def force_aff_func_args(func):
     """
@@ -930,6 +899,9 @@ class CallableStdDev(float):
     callable. Provided for compatibility with old code. Issues an
     obsolescence warning upon call.
     '''
+
+    # This class is a float. It must be set to the standard deviation
+    # upon construction.
 
     def __call__ (self):
         deprecation('the std_dev attribute should not be called'
@@ -1461,13 +1433,110 @@ def signif_dgt_to_limit(value, num_signif_d):
 
     return limit_no_rounding
 
+class LinearCombination(object):
+    """
+    Linear combination of Variable differentials.
+
+    The linear_combo attribute can change formally, but its value
+    always remains the same. Typically, the linear combination can
+    thus be expanded.
+
+    The expanded form of linear_combo is a mapping from Variables to
+    the coefficient of their differential.
+    """
+
+    # ! Invariant: linear_combo is represented internally exactly as
+    # the linear_combo argument to __init__():
+    __slots__ = "linear_combo"
+
+    def __init__(self, linear_combo):
+        """
+        linear_combo can be modified by the object, during its
+        lifetime. This allows the object to change its internal
+        representation over time (for instance by expanding the linear
+        combination and replacing the original expression with the
+        expanded one).
+
+        linear_combo -- if linear_combo is a dict, then it represents
+        an expanded linear combination and must map Variables to the
+        coefficient of their differential. Otherwise, it should be a
+        list of (coefficient, LinearCombination) pairs (that
+        represents a linear combination expression).
+        """
+
+        self.linear_combo = linear_combo
+
+    def __bool__(self):
+        """
+        Return True only if the linear combination is non-empty, i.e. if
+        the linear combination contains any term.
+        """
+        return bool(self.linear_combo)
+
+    def expanded(self):
+        """
+        Return True if and only if the linear combination is expanded.
+        """
+        return isinstance(self.linear_combo, dict)
+
+    def expand(self):
+        """
+        Expand the linear combination.
+
+        The expansion is a collections.defaultdict(float).
+
+        This should only be called if the linear combination is not
+        yet expanded.
+        """
+
+        # The derivatives are built progressively by expanding each
+        # term of the linear combination until there is no linear
+        # combination to be expanded.
+
+        # Final derivatives, constructed progressively:
+        derivatives = collections.defaultdict(float)
+
+        while self.linear_combo:  # The list of terms is emptied progressively
+
+            # One of the terms is expanded or, if no expansion is
+            # needed, simply added to the existing derivatives.
+            #
+            # Optimization note: since Python's operations are
+            # left-associative, a long sum of Variables can be built
+            # such that the last term is essentially a Variable (and
+            # not a NestedLinearCombination): popping from the
+            # remaining terms allows this term to be quickly put in
+            # the final result, which limits the number of terms
+            # remaining (and whose size can temporarily grow):
+            (main_factor, main_expr) = self.linear_combo.pop()
+
+            # print "MAINS", main_factor, main_expr
+
+            if main_expr.expanded():
+                for (var, factor) in main_expr.linear_combo.iteritems():
+                    derivatives[var] += main_factor*factor
+
+            else:  # Non-expanded form
+                for (factor, expr) in main_expr.linear_combo:
+                    # The main_factor is applied to expr:
+                    self.linear_combo.append((main_factor*factor, expr))
+
+            # print "DERIV", derivatives
+
+        self.linear_combo = derivatives
+
+    def __getstate__(self):
+        # Not false, otherwise __setstate__() will not be called:
+        return (self.linear_combo,)
+
+    def __setstate__(self, state):
+        (self.linear_combo,) = state
+
 class AffineScalarFunc(object):
     """
     Affine functions that support basic mathematical operations
     (addition, etc.).  Such functions can for instance be used for
     representing the local (linear) behavior of any function.
-
-    This class is mostly meant to be used internally.
 
     This class can also be used to represent constants.
 
@@ -1481,13 +1550,16 @@ class AffineScalarFunc(object):
     - nominal_value, std_dev: value at the origin / nominal value, and
       standard deviation.  The standard deviation can be NaN or infinity.
 
+    - n, s: abbreviations for nominal_value and std_dev.
+
     - error_components(): error_components()[x] is the error due to
       Variable x.
 
     - derivatives: derivatives[x] is the (value of the) derivative
-      with respect to Variable x.  This attribute is a dictionary
-      whose keys are the Variable objects on which the function
-      depends.
+      with respect to Variable x.  This attribute is a Derivatives
+      dictionary whose keys are the Variable objects on which the
+      function depends. The values are the numerical values of the
+      derivatives.
 
       All the Variable objects on which the function depends are in
       'derivatives'.
@@ -1497,34 +1569,32 @@ class AffineScalarFunc(object):
     """
 
     # To save memory in large arrays:
-    __slots__ = ('_nominal_value', 'derivatives')
+    __slots__ = ('_nominal_value', '_linear_part')
 
     # !! Fix for mean() in NumPy 1.8.0:
     class dtype(object):
         type = staticmethod(lambda value: value)
 
-    #! The code could be modify in order to accommodate for non-float
+    #! The code could be modified in order to accommodate for non-float
     # nominal values.  This could for instance be done through
     # the operator module: instead of delegating operations to
     # float.__*__ operations, they could be delegated to
     # operator.__*__ functions (while taking care of properly handling
     # reverse operations: __radd__, etc.).
 
-    def __init__(self, nominal_value, derivatives):
+    def __init__(self, nominal_value, linear_part):
         """
-        nominal_value -- value of the function at the origin.
-        nominal_value must not depend in any way of the Variable
-        objects in 'derivatives' (the value at the origin of the
-        function being defined is a constant).
+        nominal_value -- value of the function when the linear part is
+        zero.
 
-        derivatives -- maps each Variable object on which the function
-        being defined depends to the value of the derivative with
-        respect to that variable, taken at the nominal value of all
-        variables.
-
-        Warning: the above constraint is not checked, and the user is
-        responsible for complying with it.
+        linear_part -- LinearCombination that describes the linear
+        part of the AffineScalarFunc.
         """
+
+        # ! A technical consistency requirement is that the
+        # linear_part can be nested inside a NestedLinearCombination
+        # (because this is how functions on AffineScalarFunc calculate
+        # their result: by constructing nested expressions for them).
 
         # Defines the value at the origin:
 
@@ -1536,20 +1606,52 @@ class AffineScalarFunc(object):
         # be possible.
 
         self._nominal_value = float(nominal_value)
-        self.derivatives = derivatives
+
+        # In order to have a linear execution time for long sums, the
+        # _linear_part is generally left as is (otherwise, each
+        # successive term would expand to a linearly growing sum of
+        # terms: efficiently handling such terms [so, without copies]
+        # is not obvious, when the algorithm should work for all
+        # functions beyond sums).
+        self._linear_part = linear_part
 
     # The following prevents the 'nominal_value' attribute from being
     # modified by the user:
+    @property
     def nominal_value(self):
         "Nominal value of the random number."
         return self._nominal_value
-    nominal_value = property(nominal_value)
 
     # Abbreviation (for formulas, etc.):
     n = nominal_value
 
     ############################################################
 
+    # Making derivatives a property gives the user a clean syntax,
+    # which is consistent with derivatives becoming a dictionary.
+    @property
+    def derivatives(self):
+        """
+        Return a mapping from each Variable object on which the function
+        (self) depends to the value of the derivative with respect to
+        that variable.
+
+        This mapping should not be modified.
+
+        Derivative values are always floats.
+
+        This mapping is cached, for subsequent calls.
+        """
+
+        if not self._linear_part.expanded():
+            self._linear_part.expand()
+            # Attempts to get the contribution of a variable that the
+            # function does not depend on raise a KeyError:
+            self._linear_part.linear_combo.default_factory = None
+
+        return self._linear_part.linear_combo
+
+    ############################################################
 
     ### Operators: operators applied to AffineScalarFunc and/or
     ### float-like objects only are supported.  This is why methods
@@ -1644,11 +1746,17 @@ class AffineScalarFunc(object):
 
         for (variable, derivative) in self.derivatives.iteritems():
 
+            # print "TYPE", type(variable), type(derivative)
+
             # Individual standard error due to variable:
 
-            # 0 is returned even for a NaN derivative, since an
-            # exact number has a 0 uncertainty:
+            # 0 is returned even for a NaN derivative (in this case no
+            # multiplication by the derivative is performed): an exact
+            # variable obviously leads to no uncertainty in the
+            # functions that depend on it.
             if variable._std_dev == 0:
+                # !!! Shouldn't the errors always be floats, as a
+                # convention of this module?
                 error_components[variable] = 0
             else:
                 error_components[variable] = abs(derivative*variable._std_dev)
@@ -1672,8 +1780,8 @@ class AffineScalarFunc(object):
         #std_dev value (in fact, many intermediate AffineScalarFunc do
         #not need to have their std_dev calculated: only the final
         #AffineScalarFunc returned to the user does).
-        return CallableStdDev(sqrt(sum([
-            delta**2 for delta in self.error_components().itervalues()])))
+        return CallableStdDev(sqrt(sum(
+            delta**2 for delta in self.error_components().itervalues())))
 
     # Abbreviation (for formulas, etc.):
     s = std_dev
@@ -2200,10 +2308,8 @@ class AffineScalarFunc(object):
         New variables are specially created for the returned
         AffineScalarFunc object.
         """
-        return AffineScalarFunc(
-            self._nominal_value,
-            dict([(copy.deepcopy(var), deriv)
-                  for (var, deriv) in self.derivatives.iteritems()]))
+        return AffineScalarFunc(self._nominal_value,
+                                copy.deepcopy(self._linear_part))
 
     def __getstate__(self):
         """
@@ -2277,6 +2383,9 @@ class AffineScalarFunc(object):
         Hook for the pickle module.
         """
         for (name, value) in data_dict.iteritems():
+            # Contrary to the default __setstate__(), this does not
+            # necessarily save to the instance dictionary (because the
+            # instance might contain slots):
             setattr(self, name, value)
 
 # Nicer name, for users: isinstance(ufloat(...), UFloat) is
@@ -2415,6 +2524,8 @@ if sys.version_info < (3,):
 
 else:
 
+    # !!! This code is not run by the tests. It would be nice to have
+    # it be tested.
     def no_complex_result(func):
         '''
         Return a function that does like func, but that raises a
@@ -2584,7 +2695,7 @@ class Variable(AffineScalarFunc):
         # takes much more memory.  Thus, this implementation chooses
         # more cycles and a smaller memory footprint instead of no
         # cycles and a larger memory footprint.
-        super(Variable, self).__init__(value, {self: 1.})
+        super(Variable, self).__init__(value, LinearCombination({self: 1.}))
 
         self.std_dev = std_dev  # Assignment through a Python property
 
@@ -2638,6 +2749,9 @@ class Variable(AffineScalarFunc):
         """
         Hook for the standard copy module.
         """
+
+        # !!!!!! The comment below might not be valid anymore now that
+        # Variables do not contain derivatives anymore.
 
         # This copy implicitly takes care of the reference of the
         # variable to itself (in self.derivatives): the new Variable
@@ -2722,7 +2836,7 @@ def covariance_matrix(nums_with_uncert):
     covariance_matrix = []
     for (i1, expr1) in enumerate(nums_with_uncert, 1):
         derivatives1 = expr1.derivatives  # Optimization
-        vars1 = set(derivatives1)
+        vars1 = set(derivatives1)  # !! Python 2.7+: viewkeys() would work
         coefs_expr1 = []
 
         for expr2 in nums_with_uncert[:i1]:
@@ -2732,7 +2846,8 @@ def covariance_matrix(nums_with_uncert):
                 # var is a variable common to both numbers with
                 # uncertainties:
                 for var in vars1.intersection(derivatives2)),
-                # The result is always a float:
+                # The result is always a float (sum() with no terms
+                # returns an integer):
                 0.))
 
         covariance_matrix.append(coefs_expr1)

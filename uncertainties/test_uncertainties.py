@@ -190,7 +190,7 @@ def compare_derivatives(func, numerical_derivatives,
                             funcname, args, arg_num)
 
                         if not numbers_close(fixed_deriv_value,
-                                              num_deriv_value, 1e-4):
+                                             num_deriv_value, 1e-4):
 
                             # It is possible that the result is NaN:
                             if isnan(func_approx):
@@ -554,6 +554,17 @@ def test_pickling():
     # We make sure that the data is still there and untouched:
     assert x_unpickled._nominal_value == 'in slots'
     assert x_unpickled.__dict__ == x.__dict__
+
+    ##
+
+    # Corner case that should have no impact on the code but which is
+    # not prevented by the documentation: case of constant linear
+    # terms (the potential gotcha is that if the linear_combo
+    # attribute is empty, __getstate__()'s result could be false, and
+    # so __setstate__() would not be called and the original empty
+    # linear combination would not be set in linear_combo.
+    x = uncert_core.LinearCombination({})
+    assert pickle.loads(pickle.dumps(x)).linear_combo == {}
 
 def test_int_div():
     "Integer division"

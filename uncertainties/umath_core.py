@@ -1,3 +1,6 @@
+# !!!!!!!!!!! Add a header to the documentation, stating somethign
+# about the uncertainties.UFloat-compatible version of..., for all functions
+
 """
 Implementation of umath.py, with internals.
 """
@@ -16,7 +19,8 @@ import inspect
 
 # Local modules
 import uncertainties.core as uncert_core
-from uncertainties.core import to_affine_scalar, AffineScalarFunc
+from uncertainties.core import (to_affine_scalar, AffineScalarFunc,
+                                LinearCombination)
 
 ###############################################################################
 
@@ -53,7 +57,9 @@ many_scalars_to_scalar_funcs = []
 # no_std_wrapping = ['modf', 'frexp', 'ldexp', 'fsum', 'factorial']
 
 # Functions with numerical derivatives:
-num_deriv_funcs = ['fmod', 'gamma', 'lgamma']
+#
+# !! Python2.7+: {..., ...}
+num_deriv_funcs = set(['fmod', 'gamma', 'lgamma'])
 
 # Functions are by definition locally constant (on real
 # numbers): their value does not depend on the uncertainty (because
@@ -63,7 +69,9 @@ num_deriv_funcs = ['fmod', 'gamma', 'lgamma']
 # in their value: their value is locally constant due to the nature of
 # the function (0 derivative). This situation is similar to that of
 # comparisons (==, >, etc.).
-locally_cst_funcs = ['ceil', 'floor', 'isinf', 'isnan', 'trunc']
+#
+# !! Python 2.7+: {..., ...}
+locally_cst_funcs = set(['ceil', 'floor', 'isinf', 'isnan', 'trunc'])
 
 # Functions that do not belong in many_scalars_to_scalar_funcs, but
 # that have a version that handles uncertainties. These functions are
@@ -252,6 +260,7 @@ for name in dir(math):
         wrapped_func = uncert_core.wrap(
             func, map(uncert_core.nan_if_exception, derivatives))
 
+    # !! The same effect could be achieved with globals()[...] = ...
     setattr(this_module, name, wraps(wrapped_func, func))
 
     many_scalars_to_scalar_funcs.append(name)
@@ -303,11 +312,20 @@ def wrapped_fsum():
     return wraps(lambda arg_list: flat_fsum_wrap(*arg_list),
                  original_func)
 
+# !!!!!!!! Documented?
 fsum = wrapped_fsum()
 non_std_wrapped_funcs.append('fsum')
 
 ##########
 
+# Some functions that either return multiple arguments (modf, frexp)
+# or take some non-float arguments (which should not be converted to
+# numbers with uncertainty).
+
+# ! The arguments have the same names as in the math module
+# documentation, so that the docstrings are consistent with them.
+
+@uncert_core.set_doc(math.modf.__doc__)
 def modf(x):
     """
     Version of modf that works for numbers with uncertainty, and also
@@ -318,40 +336,32 @@ def modf(x):
     # simpler because only 1 argument is given, and there is no
     # delegation to other functions involved (as for __mul__, etc.).
 
-    aff_func = to_affine_scalar(x)
+    aff_func = to_affine_scalar(x)  # Uniform treatment of all numbers
 
     (frac_part, int_part) = math.modf(aff_func.nominal_value)
 
-    if aff_func.derivatives:
+    if aff_func._linear_part:  # If not a constant
         # The derivative of the fractional part is simply 1: the
-        # derivatives of modf(x)[0] are the derivatives of x:
-        return (AffineScalarFunc(frac_part, aff_func.derivatives), int_part)
+        # linear part of modf(x)[0] is the linear part of x:
+        return (AffineScalarFunc(frac_part, aff_func._linear_part), int_part)
     else:
         # This function was not called with an AffineScalarFunc
         # argument: there is no need to return numbers with uncertainties:
         return (frac_part, int_part)
-
-modf = uncert_core.set_doc(math.modf.__doc__)(modf)
 many_scalars_to_scalar_funcs.append('modf')
 
-def ldexp(x, y):
-    # The code below is inspired by uncert_core.wrap().  It is
-    # simpler because only 1 argument is given, and there is no
-    # delegation to other functions involved (as for __mul__, etc.).
-
+@uncert_core.set_doc(math.ldexp.__doc__)
+def ldexp(x, i):
     # Another approach would be to add an additional argument to
     # uncert_core.wrap() so that some arguments are automatically
     # considered as constants.
 
     aff_func = to_affine_scalar(x)  # y must be an integer, for math.ldexp
 
-    if aff_func.derivatives:
-        factor = 2**y
+    if aff_func._linear_part:
         return AffineScalarFunc(
-            math.ldexp(aff_func.nominal_value, y),
-            # Chain rule:
-            dict([(var, factor*deriv)
-                  for (var, deriv) in aff_func.derivatives.iteritems()]))
+            math.ldexp(aff_func.nominal_value, i),
+            LinearCombination([(2**i, aff_func._linear_part)]))
     else:
         # This function was not called with an AffineScalarFunc
         # argument: there is no need to return numbers with uncertainties:
@@ -361,11 +371,10 @@ def ldexp(x, y):
         # math.ldexp, this way (aff_func.nominal_value might be the
         # value of x coerced to a difference type [int->float, for
         # instance]):
-        return math.ldexp(x, y)
-ldexp = uncert_core.set_doc(math.ldexp.__doc__)(ldexp)
-
+        return math.ldexp(x, i)
 many_scalars_to_scalar_funcs.append('ldexp')
 
+@uncert_core.set_doc(math.frexp.__doc__)
 def frexp(x):
     """
     Version of frexp that works for numbers with uncertainty, and also
@@ -378,25 +387,22 @@ def frexp(x):
 
     aff_func = to_affine_scalar(x)
 
-    if aff_func.derivatives:
-        result = math.frexp(aff_func.nominal_value)
-        # With frexp(x) = (m, e), dm/dx = 1/(2**e):
-        factor = 1/(2**result[1])
+    if aff_func._linear_part:
+        (mantissa, exponent) = math.frexp(aff_func.nominal_value)
         return (
             AffineScalarFunc(
-                result[0],
-                # Chain rule:
-                dict([(var, factor*deriv)
-                      for (var, deriv) in aff_func.derivatives.iteritems()])),
+                mantissa,
+                # With frexp(x) = (m, e), x = m*2**e, so m = x*2**-e
+                # and therefore dm/dx = 2**-e (as e in an integer that
+                # does not vary when x changes):
+                LinearCombination([2**-exponent, aff_func._linear_part])),
             # The exponent is an integer and is supposed to be
-            # continuous (small errors):
-            result[1])
+            # continuous (errors must be small):
+            exponent)
     else:
         # This function was not called with an AffineScalarFunc
         # argument: there is no need to return numbers with uncertainties:
         return math.frexp(x)
-frexp = uncert_core.set_doc(math.frexp.__doc__)(frexp)
-
 non_std_wrapped_funcs.append('frexp')
 
 ###############################################################################

@@ -282,12 +282,15 @@ for name in dir(math):
 # However, each of the arguments inside this single list can
 # be a variable.  We handle this in a specific way:
 
-# Only for Python 2.6+:
+try:
+    # Only for Python 2.6+:
 
-# For drop-in compatibility with the math module:
-factorial = math.factorial
-non_std_wrapped_funcs.append('factorial')
-
+    # For drop-in compatibility with the math module:
+    factorial = math.factorial
+except AttributeError:
+    pass  # factorial not defined
+else:
+    non_std_wrapped_funcs.append('factorial')
 
 # We wrap math.fsum
 

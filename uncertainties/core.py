@@ -895,7 +895,7 @@ def PDG_precision(std_dev):
 # format string) formatting function that works whatever the version
 # of Python. This function exists so that the more capable format() is
 # used instead of the % formatting operator, if available:
-robust_format = format
+robust_format = lambda value, format_spec: format_spec % value
 
 class CallableStdDev(float):
     '''
@@ -2728,16 +2728,14 @@ class Variable(AffineScalarFunc):
 
         self.tag = tag
 
-    @property
-    def std_dev(self):
+    def _std_dev_getter(self):
         return self._std_dev
 
     # Standard deviations can be modified (this is a feature).
     # AffineScalarFunc objects that depend on the Variable have their
     # std_dev automatically modified (recalculated with the new
     # std_dev of their Variables):
-    @std_dev.setter
-    def std_dev(self, std_dev):
+    def _std_dev_setter(self, std_dev):
 
         # We force the error to be float-like.  Since it is considered
         # as a standard deviation, it must be either positive or NaN:
@@ -2748,6 +2746,8 @@ class Variable(AffineScalarFunc):
             raise NegativeStdDev("The standard deviation cannot be negative")
 
         self._std_dev = CallableStdDev(std_dev)
+
+    std_dev = property(fget=_std_dev_getter, fset=_std_dev_setter)
 
     # Support for legacy method:
     def set_std_dev(self, value):  # Obsolete
@@ -3216,6 +3216,7 @@ def ufloat(nominal_value, std_dev=None, tag=None):
     try:
         # Standard case:
         return Variable(nominal_value, std_dev, tag=tag)
+
     # Exception types raised by, respectively: tuple or string that
     # can be converted through float() (case of a number with no
     # uncertainty), and string that cannot be converted through

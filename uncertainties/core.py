@@ -895,8 +895,11 @@ def PDG_precision(std_dev):
 # format string) formatting function that works whatever the version
 # of Python. This function exists so that the more capable format() is
 # used instead of the % formatting operator, if available:
-def format(value, format_spec=""):
-    return ("%%%s" % format_spec) % value
+try:
+    format
+except NameError:
+    def format(value, format_spec=""):
+        return ("%%%s" % format_spec) % value
 robust_format = format
 
 class CallableStdDev(float):

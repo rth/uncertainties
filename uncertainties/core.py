@@ -20,7 +20,15 @@ from __future__ import division  # Many analytical derivatives depend on this
 import sys
 import re
 import math
-from math import sqrt, log, isnan, isinf  # Optimization: no attribute look-up
+from math import sqrt, log  # Optimization: no attribute look-up
+
+try:
+    from math import isnan, isinf
+except ImportError:
+    def isnan(x):
+        return x != x  # NaN numbers verify this
+    def isinf(x):
+        return abs(x) == float("inf")
 
 try:
     from math import isinfinite  # !! Python 3.2+
@@ -31,7 +39,6 @@ import copy
 import warnings
 import itertools
 import inspect
-import numbers
 import collections
 
 # Attributes that are always exported (some other attributes are
@@ -80,7 +87,7 @@ def set_doc(doc_string):
 # Some types known to not depend on Variable objects are put in
 # CONSTANT_TYPES.  The most common types can be put in front, as this
 # may slightly improve the execution speed.
-FLOAT_LIKE_TYPES = (numbers.Number,)
+FLOAT_LIKE_TYPES = (float, int, long)
 CONSTANT_TYPES = FLOAT_LIKE_TYPES+(complex,)
 
 ###############################################################################
@@ -1267,14 +1274,23 @@ def format_num(nom_val_main, error_main, common_exp,
                 # exponent:
                 remaining_width = max(width-len(exp_str), 0)
 
+                if nom_has_exp:
+                    n_width = remaining_width
+                else:
+                    n_width = width
                 fmt_prefix_n = '%s%s%d%s' % (
                     fmt_parts['sign'], fmt_parts['zero'],
-                    remaining_width if nom_has_exp else width,
+                    n_width,
                     fmt_parts['comma'])
+
+                if error_has_exp:
+                    e_width = remaining_width
+                else:
+                    e_width = width
 
                 fmt_prefix_e = '%s%d%s' % (
                     fmt_parts['zero'],
-                    remaining_width if error_has_exp else width,
+                    e_width,
                     fmt_parts['comma'])
 
             else:
@@ -1339,7 +1355,11 @@ def format_num(nom_val_main, error_main, common_exp,
             if isnan(nom_val_main):
                 nom_val_str = '\mathrm{%s}' % nom_val_str
             elif isinf(nom_val_main):
-                nom_val_str = '%s\infty' % ('-' if nom_val_main < 0 else '')
+                if nom_val_main < 0:
+                    sign_str = '-'
+                else:
+                    sign_str = ''
+                nom_val_str = '%s\infty' % sign_str
 
             if isnan(error_main):
                 error_str = '\mathrm{%s}' % error_str
@@ -2125,10 +2145,11 @@ class AffineScalarFunc(object):
 
                 ## print "NUM_SIGNIF_DIGITS", num_signif_digits
 
-                digits_limit = (
-                    signif_dgt_to_limit(exp_ref_value, num_signif_digits)
-                    if real_values
-                    else None)
+                if real_values:
+                    digits_limit = (
+                        signif_dgt_to_limit(exp_ref_value, num_signif_digits))
+                else:
+                    digits_limit = None
 
                 ## print "DIGITS_LIMIT", digits_limit
 
@@ -2249,9 +2270,14 @@ class AffineScalarFunc(object):
             # digit past the decimal point" of Python
             # (https://docs.python.org/3.4/library/string.html#format-specification-mini-language). This
             # is only applied for null uncertainties.
+
+            if pres_type is None and not std_dev:
+                limit_prec = 1
+            else:
+                limit_prec = 0
             prec = max(-signif_limit,
-                       1 if pres_type is None and not std_dev
-                       else 0)
+                       limit_prec)
+
         ## print "PREC", prec
 
         ########################################

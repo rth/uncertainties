@@ -382,7 +382,7 @@ class IndexableIter(object):
 
             for pos in range(len(returned_elements), index+1):
 
-                value = next(self.iterable)
+                value = self.iterable.next()
 
                 if value is None:
                     value = self.none_converter(pos)
@@ -1506,7 +1506,7 @@ class LinearCombination(object):
         """
         Expand the linear combination.
 
-        The expansion is a collections.defaultdict(float).
+        The expansion is a dict.
 
         This should only be called if the linear combination is not
         yet expanded.
@@ -1517,7 +1517,7 @@ class LinearCombination(object):
         # combination to be expanded.
 
         # Final derivatives, constructed progressively:
-        derivatives = collections.defaultdict(float)
+        derivatives = {}
 
         while self.linear_combo:  # The list of terms is emptied progressively
 
@@ -1537,7 +1537,8 @@ class LinearCombination(object):
 
             if main_expr.expanded():
                 for (var, factor) in main_expr.linear_combo.iteritems():
-                    derivatives[var] += main_factor*factor
+                    derivatives[var] = (derivatives.setdefault(var, 0)
+                                        +main_factor*factor)
 
             else:  # Non-expanded form
                 for (factor, expr) in main_expr.linear_combo:
@@ -1668,9 +1669,6 @@ class AffineScalarFunc(object):
 
         if not self._linear_part.expanded():
             self._linear_part.expand()
-            # Attempts to get the contribution of a variable that the
-            # function does not depend on raise a KeyError:
-            self._linear_part.linear_combo.default_factory = None
 
         return self._linear_part.linear_combo
 

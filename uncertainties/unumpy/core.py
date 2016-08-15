@@ -395,7 +395,7 @@ def func_with_deriv_to_uncert_func(func_with_derivatives):
             (array_derivative(array_version, var) for var in variables),
             *args, **kwargs)
 
-        func_nominal_value = next(func_then_derivs)
+        func_nominal_value = func_then_derivs.next()
 
         if not variables:
             return func_nominal_value

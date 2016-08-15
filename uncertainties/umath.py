@@ -35,5 +35,5 @@ This software is released under a dual license.  (1) The BSD license.
 (2) Any other license, as long as it is obtained from the original
 author.'''
 
-from .umath_core import *
-from .umath_core import __all__  # For a correct help(umath)
+from uncertainties.umath_core import *
+from uncertainties.umath_core import __all__  # For a correct help(umath)

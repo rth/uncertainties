@@ -1214,7 +1214,11 @@ def format_num(nom_val_main, error_main, common_exp,
                 # nom_val_str: could this be avoided while avoiding to
                 # duplicate the formula for nom_val_str for the common
                 # case (robust_format(...))?
-                nom_val_str = '%s\infty' % ('-' if nom_val_main < 0 else '')
+                if nom_val_main < 0:
+                    sign_str = '-'
+                else:
+                    sign_str = ''
+                nom_val_str = '%s\infty' % sign_str
 
         value_str = nom_val_str+value_end
 

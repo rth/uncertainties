@@ -228,12 +228,6 @@ def test_math_module():
     # The same exceptions should be generated when numbers with uncertainties
     # are used:
 
-    ## !! The Nose testing framework seems to catch an exception when
-    ## it is aliased: "exc = OverflowError; ... except exc:..."  is
-    ## surprisingly caught by nose (as OverflowError). So, tests are
-    ## written in a version-specific manner (until the Nose issue is
-    ## resolved), instead of using calculated exception types.
-
     # The type of the expected exception is first determined, because
     # it varies between versions of Python (OverflowError in Python
     # 2.6+, ValueError in Python 2.5,...):
@@ -253,13 +247,13 @@ def test_math_module():
     except exception_class, err_ufloat:  # "as", for Python 2.6+
         assert err_math.args == err_ufloat.args
     else:
-        raise Exception('OverflowError exception expected')
+        raise Exception('%s exception expected' % exception_class.__name__)
     try:
         umath_core.log(ufloat(0, 1))
     except exception_class, err_ufloat:  # "as", for Python 2.6+
         assert err_math.args == err_ufloat.args
     else:
-        raise Exception('OverflowError exception expected')
+        raise Exception('%s exception expected' % exception_class.__name__)
 
 
 def test_hypot():

@@ -234,27 +234,28 @@ def test_math_module():
     try:
         math.log(0)
     except Exception, err_math:  # "as", for Python 2.6+
+        err_math_args = err_math.args
         exception_class = err_math.__class__
 
     try:
         umath_core.log(0)
     except exception_class, err_ufloat:  # "as", for Python 2.6+
-        assert err_math.args == err_ufloat.args
+        assert err_math_args == err_ufloat.args
     else:
         raise Exception('%s exception expected' % exception_class.__name__)
     try:
         umath_core.log(ufloat(0, 0))
     except exception_class, err_ufloat:  # "as", for Python 2.6+
         assert err_math.args == err_ufloat.args
+        assert err_math_args == err_ufloat.args
     else:
         raise Exception('%s exception expected' % exception_class.__name__)
     try:
         umath_core.log(ufloat(0, 1))
     except exception_class, err_ufloat:  # "as", for Python 2.6+
-        assert err_math.args == err_ufloat.args
+        assert err_math_args == err_ufloat.args
     else:
         raise Exception('%s exception expected' % exception_class.__name__)
-
 
 def test_hypot():
     '''

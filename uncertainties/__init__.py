@@ -221,11 +221,11 @@ This software is released under a dual license.  (1) The BSD license.
 (2) Any other license, as long as it is obtained from the original
 author.'''
 
-from .core import *
-from .core import __all__  # For a correct help(uncertainties)
+from uncertainties.core import *
+from uncertainties.core import __all__  # For a correct help(uncertainties)
 
 # Numerical version:
-__version_info__ = (2, 4, 8, 1)
+__version_info__ = (3, 0)
 __version__ = '.'.join(map(str, __version_info__))
 
 __author__ = 'Eric O. LEBIGOT (EOL) <eric.lebigot@normalesup.org>'

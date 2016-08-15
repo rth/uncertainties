@@ -23,8 +23,8 @@ if os.path.exists('uncertainties'):
     package_dir = 'uncertainties'
 else:
     # Case of a PyPI package download:
-    if sys.version_info >= (2, 6):
-        package_dir = 'uncertainties-py26'
+    if sys.version_info >= (2, 7):
+        package_dir = 'uncertainties-py27'
     else:
         package_dir = 'uncertainties-py23'
 
@@ -42,7 +42,7 @@ else:
 # Common options for distutils/setuptools's setup():
 setup_options = dict(
     name='uncertainties',
-    version='2.4.8.1',
+    version='3.0',
     author='Eric O. LEBIGOT (EOL)',
     author_email='eric.lebigot@normalesup.org',
     url='http://pythonhosted.org/uncertainties/',

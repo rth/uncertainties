@@ -844,11 +844,9 @@ def first_digit(value):
 
     Return 0 for a null value.
     '''
-    # Python 2.5 returns nan for math.log10(-4), but Python 2.7 raises
-    # ValueError, so the value is directly tested:
-    if value:
+    try:
         return int(math.floor(math.log10(abs(value))))
-    else:
+    except ValueError:  # Case of value == 0
         return 0
 
 def PDG_precision(std_dev):
@@ -959,8 +957,8 @@ TO_SUPERSCRIPT = {
 # Inverted TO_SUPERSCRIPT table, for use with unicode.translate():
 #
 #! Python 2.7+ can use a dictionary comprehension instead:
-FROM_SUPERSCRIPT = dict(
-    (ord(sup), normal) for (normal, sup) in TO_SUPERSCRIPT.items())
+FROM_SUPERSCRIPT = {
+    ord(sup): normal for (normal, sup) in TO_SUPERSCRIPT.iteritems()}
 
 def to_superscript(value):
     '''
@@ -1833,7 +1831,7 @@ class AffineScalarFunc(object):
         # An empty format string and str() usually return the same
         # string
         # (http://docs.python.org/2/library/string.html#format-specification-mini-language):
-        return self.__format__('')  # Works with Python < 2.6, not format()
+        return self.format('')
 
     def __format__(self, format_spec):
         '''Formats a number with uncertainty.
@@ -2911,7 +2909,13 @@ else:
 ###############################################################################
 # Parsing of values with uncertainties:
 
-POSITIVE_DECIMAL_UNSIGNED_OR_NON_FINITE = ur'((\d+)(\.\d*)?|nan|NAN|inf|INF)'
+# Parsing of (part of) numbers. The reason why the decimal part is
+# parsed (if any), instead of using the parsing built in float(), is
+# that the presence (or not) of a decimal point does matter, in the
+# semantics of some representations (e.g. .1(2.) = .1+/-2, whereas
+# .1(2) = .1+/-0.2), so just getting the numerical value of the part
+# in parentheses would not be sufficient.
+POSITIVE_DECIMAL_UNSIGNED_OR_NON_FINITE = ur'((\d*)(\.\d*)?|nan|NAN|inf|INF)'
 
 # Regexp for a number with uncertainty (e.g., "-1.234(2)e-6"), where
 # the uncertainty is optional (in which case the uncertainty is
@@ -2963,7 +2967,7 @@ def parse_error_in_parentheses(representation):
         # The 'main' part is the nominal value, with 'int'eger part, and
         # 'dec'imal part.  The 'uncert'ainty is similarly broken into its
         # integer and decimal parts.
-        (sign, main, main_int, main_dec, uncert, uncert_int, uncert_dec,
+        (sign, main, _, main_dec, uncert, uncert_int, uncert_dec,
          exponent) = match.groups()
     else:
         raise NotParenUncert("Unparsable number representation: '%s'."
@@ -2985,15 +2989,13 @@ def parse_error_in_parentheses(representation):
         uncert_int = '1'  # The other parts of the uncertainty are None
 
     # Do we have a fully explicit uncertainty?
-    #
-    # !!! Python 2.7+: in {'nan',...} is faster (x10)
-    if uncert_dec is not None or uncert in ['nan', 'NAN', 'inf', 'INF']:
+    if uncert_dec is not None or uncert in {'nan', 'NAN', 'inf', 'INF'}:
         uncert_value = float(uncert)
     else:
         # uncert_int represents an uncertainty on the last digits:
 
         # The number of digits after the period defines the power of
-        # 10 than must be applied to the provided uncertainty:
+        # 10 that must be applied to the provided uncertainty:
         if main_dec is None:
             num_digits_after_period = 0
         else:
@@ -3155,6 +3157,11 @@ def ufloat_fromstr(representation, tag=None):
         3±nan
 
     Surrounding spaces are ignored.
+
+    About the "shorthand" notation: 1.23(3) == 1.23 ± 0.03 but
+    1.23(3.) == 1.32 ± 3.00. Thus, the presence of a decimal point in
+    the uncertainty signals an absolute uncertainty (instead of an
+    uncertainty on the last digits of the nominal value).
     """
 
     (nominal_value, std_dev) = str_to_number_with_uncert(

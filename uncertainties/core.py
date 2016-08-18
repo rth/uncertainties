@@ -844,9 +844,11 @@ def first_digit(value):
 
     Return 0 for a null value.
     '''
-    try:
+    # Python 2.5 returns nan for math.log10(-4), but Python 2.7 raises
+    # ValueError, so the value is directly tested:
+    if value:
         return int(math.floor(math.log10(abs(value))))
-    except ValueError:  # Case of value == 0
+    else:
         return 0
 
 def PDG_precision(std_dev):
@@ -957,8 +959,8 @@ TO_SUPERSCRIPT = {
 # Inverted TO_SUPERSCRIPT table, for use with unicode.translate():
 #
 #! Python 2.7+ can use a dictionary comprehension instead:
-FROM_SUPERSCRIPT = {
-    ord(sup): normal for (normal, sup) in TO_SUPERSCRIPT.iteritems()}
+FROM_SUPERSCRIPT = dict(
+    (ord(sup), normal) for (normal, sup) in TO_SUPERSCRIPT.items())
 
 def to_superscript(value):
     '''
@@ -1831,7 +1833,7 @@ class AffineScalarFunc(object):
         # An empty format string and str() usually return the same
         # string
         # (http://docs.python.org/2/library/string.html#format-specification-mini-language):
-        return self.format('')
+        return self.__format__('')  # Works with Python < 2.6, not format()
 
     def __format__(self, format_spec):
         '''Formats a number with uncertainty.
@@ -2989,7 +2991,9 @@ def parse_error_in_parentheses(representation):
         uncert_int = '1'  # The other parts of the uncertainty are None
 
     # Do we have a fully explicit uncertainty?
-    if uncert_dec is not None or uncert in {'nan', 'NAN', 'inf', 'INF'}:
+    #
+    # !!! Python 2.7+: in {'nan',...} is faster (x10)
+    if uncert_dec is not None or uncert in ['nan', 'NAN', 'inf', 'INF']:
         uncert_value = float(uncert)
     else:
         # uncert_int represents an uncertainty on the last digits:

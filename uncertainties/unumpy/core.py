@@ -264,7 +264,7 @@ def wrap_array_func(func):
 ###############################################################################
 # Arrays
 
-def uarray(nominal_values, std_devs=None):
+def uarray(nominal_values, std_devs=None, dtype='object'):
     """
     Return a NumPy array of numbers with uncertainties
     initialized with the given nominal values and standard
@@ -283,12 +283,19 @@ def uarray(nominal_values, std_devs=None):
         deprecation('uarray() should now be called with two arguments.')
         (nominal_values, std_devs) = nominal_values
 
-    return (numpy.vectorize(
-        # ! Looking up uncert_core.Variable beforehand through
-        # '_Variable = uncert_core.Variable' does not result in a
-        # significant speed up:
-        lambda v, s: uncert_core.Variable(v, s), otypes=[object])
-        (nominal_values, std_devs))
+    if dtype == 'object':
+        return (numpy.vectorize(
+            # ! Looking up uncert_core.Variable beforehand through
+            # '_Variable = uncert_core.Variable' does not result in a
+            # significant speed up:
+            lambda v, s: uncert_core.Variable(v, s), otypes=[object])
+            (nominal_values, std_devs))
+    elif dtype == 'uarray':
+        from .core2 import UncertaintyArray
+        return UncertaintyArray(nominal_values, std_devs)
+    else:
+        raise ValueError('dtype={} is not supported!'.format(dtype))
+
 
 ###############################################################################
 

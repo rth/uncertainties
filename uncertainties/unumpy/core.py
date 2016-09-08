@@ -291,8 +291,8 @@ def uarray(nominal_values, std_devs=None, dtype='object'):
             lambda v, s: uncert_core.Variable(v, s), otypes=[object])
             (nominal_values, std_devs))
     elif dtype == 'uarray':
-        from .core2 import UncertaintyArray
-        return UncertaintyArray(nominal_values, std_devs)
+        from .core2 import UncertainArray
+        return UncertainArray(nominal_values, std_devs)
     else:
         raise ValueError('dtype={} is not supported!'.format(dtype))
 

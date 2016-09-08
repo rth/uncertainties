@@ -34,13 +34,13 @@ else:
     import cPickle as pickle
 
 __all__ = [
-#    'MAError', 'MaskError', 'MaskType', 'MaskedArray', 'abs', 'absolute',
+#    'MAError', 'MaskError', 'MaskType', 'UncertainArray', 'abs', 'absolute',
 #    'add', 'all', 'allclose', 'allequal', 'alltrue', 'amax', 'amin',
 #    'angle', 'anom', 'anomalies', 'any', 'append', 'arange', 'arccos',
 #    'arccosh', 'arcsin', 'arcsinh', 'arctan', 'arctan2', 'arctanh',
 #    'argmax', 'argmin', 'argsort', 'around', 'array', 'asanyarray',
 #    'asarray', 'bitwise_and', 'bitwise_or', 'bitwise_xor', 'bool_', 'ceil',
-#    'choose', 'clip', 'common_fill_value', 'compress', 'compressed',
+#    'choose', 'clip', 'common_fill_value', 
 #    'concatenate', 'conjugate', 'copy', 'cos', 'cosh', 'count', 'cumprod',
 #    'cumsum', 'default_fill_value', 'diag', 'diagonal', 'diff', 'divide',
 #    'dump', 'dumps', 'empty', 'empty_like', 'equal', 'exp', 'expand_dims',
@@ -49,15 +49,15 @@ __all__ = [
 #    'frombuffer', 'fromflex', 'fromfunction', 'getdata', 'getmask',
 #    'getmaskarray', 'greater', 'greater_equal', 'harden_mask', 'hypot',
 #    'identity', 'ids', 'indices', 'inner', 'innerproduct', 'isMA',
-#    'isMaskedArray', 'is_mask', 'is_masked', 'isarray', 'left_shift',
+#    'isUncertainArray', 'is_mask', 'is_uncertain', 'isarray', 'left_shift',
 #    'less', 'less_equal', 'load', 'loads', 'log', 'log10', 'log2',
 #    'logical_and', 'logical_not', 'logical_or', 'logical_xor', 'make_mask',
-#    'make_mask_descr', 'make_mask_none', 'mask_or', 'masked',
-#    'masked_array', 'masked_equal', 'masked_greater',
-#    'masked_greater_equal', 'masked_inside', 'masked_invalid',
-#    'masked_less', 'masked_less_equal', 'masked_not_equal',
-#    'masked_object', 'masked_outside', 'masked_print_option',
-#    'masked_singleton', 'masked_values', 'masked_where', 'max', 'maximum',
+#    'make_mask_descr', 'make_mask_none', 'mask_or', 'uncertain',
+#    'uncertain_array', 'uncertain_equal', 'uncertain_greater',
+#    'uncertain_greater_equal', 'uncertain_inside', 'uncertain_invalid',
+#    'uncertain_less', 'uncertain_less_equal', 'uncertain_not_equal',
+#    'uncertain_object', 'uncertain_outside', 'uncertain_print_option',
+#    'uncertain_singleton', 'uncertain_values', 'uncertain_where', 'max', 'maximum',
 #    'maximum_fill_value', 'mean', 'min', 'minimum', 'minimum_fill_value',
 #    'mod', 'multiply', 'mvoid', 'ndim', 'negative', 'nomask', 'nonzero',
 #    'not_equal', 'ones', 'outer', 'outerproduct', 'power', 'prod',
@@ -91,7 +91,7 @@ def get_object_signature(obj):
 
 class MAError(Exception):
     """
-    Class for masked array related errors.
+    Class for uncertain array related errors.
 
     """
     pass
@@ -249,10 +249,10 @@ def _check_fill_value(fill_value, ndtype):
 
 def set_fill_value(a, fill_value):
     """
-    Set the filling value of a, if a is a masked array.
+    Set the filling value of a, if a is a uncertain array.
 
-    This function changes the fill value of the masked array `a` in place.
-    If `a` is not a masked array, the function returns silently, without
+    This function changes the fill value of the uncertain array `a` in place.
+    If `a` is not a uncertain array, the function returns silently, without
     doing anything.
 
     Parameters
@@ -271,8 +271,8 @@ def set_fill_value(a, fill_value):
     See Also
     --------
     maximum_fill_value : Return the default fill value for a dtype.
-    MaskedArray.fill_value : Return current fill value.
-    MaskedArray.set_fill_value : Equivalent method.
+    UncertainArray.fill_value : Return current fill value.
+    UncertainArray.set_fill_value : Equivalent method.
 
     Examples
     --------
@@ -280,18 +280,18 @@ def set_fill_value(a, fill_value):
     >>> a = np.arange(5)
     >>> a
     array([0, 1, 2, 3, 4])
-    >>> a = ma.masked_where(a < 3, a)
+    >>> a = ma.uncertain_where(a < 3, a)
     >>> a
-    masked_array(data = [-- -- -- 3 4],
+    uncertain_array(data = [-- -- -- 3 4],
           mask = [ True  True  True False False],
           fill_value=999999)
     >>> ma.set_fill_value(a, -999)
     >>> a
-    masked_array(data = [-- -- -- 3 4],
+    uncertain_array(data = [-- -- -- 3 4],
           mask = [ True  True  True False False],
           fill_value=-999)
 
-    Nothing happens if `a` is not a masked array.
+    Nothing happens if `a` is not a uncertain array.
 
     >>> a = range(5)
     >>> a
@@ -307,7 +307,7 @@ def set_fill_value(a, fill_value):
     array([0, 1, 2, 3, 4])
 
     """
-    if isinstance(a, MaskedArray):
+    if isinstance(a, UncertainArray):
         a.set_fill_value(fill_value)
     return
 
@@ -318,7 +318,7 @@ def get_fill_value(a):
     default filling value for that type.
 
     """
-    if isinstance(a, MaskedArray):
+    if isinstance(a, UncertainArray):
         result = a.fill_value
     else:
         result = default_fill_value(a)
@@ -327,15 +327,15 @@ def get_fill_value(a):
 
 def common_fill_value(a, b):
     """
-    Return the common filling value of two masked arrays, if any.
+    Return the common filling value of two uncertain arrays, if any.
 
     If ``a.fill_value == b.fill_value``, return the fill value,
     otherwise return None.
 
     Parameters
     ----------
-    a, b : MaskedArray
-        The masked arrays for which to compare fill values.
+    a, b : UncertainArray
+        The uncertain arrays for which to compare fill values.
 
     Returns
     -------
@@ -359,15 +359,15 @@ def common_fill_value(a, b):
 
 def filled(a, fill_value=None):
     """
-    Return input as an array with masked data replaced by a fill value.
+    Return input as an array with uncertain data replaced by a fill value.
 
-    If `a` is not a `MaskedArray`, `a` itself is returned.
-    If `a` is a `MaskedArray` and `fill_value` is None, `fill_value` is set to
+    If `a` is not a `UncertainArray`, `a` itself is returned.
+    If `a` is a `UncertainArray` and `fill_value` is None, `fill_value` is set to
     ``a.fill_value``.
 
     Parameters
     ----------
-    a : MaskedArray or array_like
+    a : UncertainArray or array_like
         An input object.
     fill_value : scalar, optional
         Filling value. Default is None.
@@ -403,59 +403,59 @@ def filled(a, fill_value=None):
         return np.array(a)
 
 
-def get_masked_subclass(*arrays):
+def get_uncertain_subclass(*arrays):
     """
-    Return the youngest subclass of MaskedArray from a list of (masked) arrays.
+    Return the youngest subclass of UncertainArray from a list of (uncertain) arrays.
 
     In case of siblings, the first listed takes over.
 
     """
     if len(arrays) == 1:
         arr = arrays[0]
-        if isinstance(arr, MaskedArray):
+        if isinstance(arr, UncertainArray):
             rcls = type(arr)
         else:
-            rcls = MaskedArray
+            rcls = UncertainArray
     else:
         arrcls = [type(a) for a in arrays]
         rcls = arrcls[0]
-        if not issubclass(rcls, MaskedArray):
-            rcls = MaskedArray
+        if not issubclass(rcls, UncertainArray):
+            rcls = UncertainArray
         for cls in arrcls[1:]:
             if issubclass(cls, rcls):
                 rcls = cls
-    # Don't return MaskedConstant as result: revert to MaskedArray
+    # Don't return MaskedConstant as result: revert to UncertainArray
     if rcls.__name__ == 'MaskedConstant':
-        return MaskedArray
+        return UncertainArray
     return rcls
 
 
 def getdata(a, subok=True):
     """
-    Return the data of a masked array as an ndarray.
+    Return the data of a uncertain array as an ndarray.
 
-    Return the data of `a` (if any) as an ndarray if `a` is a ``MaskedArray``,
+    Return the data of `a` (if any) as an ndarray if `a` is a ``UncertainArray``,
     else return `a` as a ndarray or subclass (depending on `subok`) if not.
 
     Parameters
     ----------
     a : array_like
-        Input ``MaskedArray``, alternatively a ndarray or a subclass thereof.
+        Input ``UncertainArray``, alternatively a ndarray or a subclass thereof.
     subok : bool
         Whether to force the output to be a `pure` ndarray (False) or to
         return a subclass of ndarray if appropriate (True, default).
 
     See Also
     --------
-    getmask : Return the mask of a masked array, or nomask.
-    getmaskarray : Return the mask of a masked array, or full array of False.
+    getmask : Return the mask of a uncertain array, or nomask.
+    getmaskarray : Return the mask of a uncertain array, or full array of False.
 
     Examples
     --------
     >>> import numpy.ma as ma
-    >>> a = ma.masked_equal([[1,2],[3,4]], 2)
+    >>> a = ma.uncertain_equal([[1,2],[3,4]], 2)
     >>> a
-    masked_array(data =
+    uncertain_array(data =
      [[1 --]
      [3 4]],
           mask =
@@ -466,7 +466,7 @@ def getdata(a, subok=True):
     array([[1, 2],
            [3, 4]])
 
-    Equivalently use the ``MaskedArray`` `data` attribute.
+    Equivalently use the ``UncertainArray`` `data` attribute.
 
     >>> a.data
     array([[1, 2],
@@ -487,7 +487,7 @@ get_data = getdata
 
 def fix_invalid(a, mask=nomask, copy=True, fill_value=None):
     """
-    Return input with invalid data masked and replaced by a fill value.
+    Return input with invalid data uncertain and replaced by a fill value.
 
     Invalid data means values of `nan`, `inf`, etc.
 
@@ -497,7 +497,7 @@ def fix_invalid(a, mask=nomask, copy=True, fill_value=None):
         Input array, a (subclass of) ndarray.
     mask : sequence, optional
         Mask. Must be convertible to an array of booleans with the same
-        shape as `data`. True indicates a masked (i.e. invalid) data.
+        shape as `data`. True indicates a uncertain (i.e. invalid) data.
     copy : bool, optional
         Whether to use a copy of `a` (True) or to fix `a` in place (False).
         Default is True.
@@ -507,7 +507,7 @@ def fix_invalid(a, mask=nomask, copy=True, fill_value=None):
 
     Returns
     -------
-    b : MaskedArray
+    b : UncertainArray
         The input array with invalid entries fixed.
 
     Notes
@@ -518,11 +518,11 @@ def fix_invalid(a, mask=nomask, copy=True, fill_value=None):
     --------
     >>> x = np.ma.array([1., -1, np.nan, np.inf], mask=[1] + [0]*3)
     >>> x
-    masked_array(data = [-- -1.0 nan inf],
+    uncertain_array(data = [-- -1.0 nan inf],
                  mask = [ True False False False],
            fill_value = 1e+20)
     >>> np.ma.fix_invalid(x)
-    masked_array(data = [-- -1.0 -- --],
+    uncertain_array(data = [-- -1.0 -- --],
                  mask = [ True False  True  True],
            fill_value = 1e+20)
 
@@ -534,7 +534,7 @@ def fix_invalid(a, mask=nomask, copy=True, fill_value=None):
     array([  1.,  -1.,  NaN,  Inf])
 
     """
-    a = masked_array(a, copy=copy, mask=mask, subok=True)
+    a = uncertain_array(a, copy=copy, mask=mask, subok=True)
     invalid = np.logical_not(np.isfinite(a._data))
     if not invalid.any():
         return a
@@ -572,8 +572,8 @@ class _DomainCheckInterval:
 
     def __call__(self, x):
         "Execute the call behavior."
-        # nans at masked positions cause RuntimeWarnings, even though
-        # they are masked. To avoid this we suppress warnings.
+        # nans at uncertain positions cause RuntimeWarnings, even though
+        # they are uncertain. To avoid this we suppress warnings.
         with np.errstate(invalid='ignore'):
             return umath.logical_or(umath.greater(x, self.b),
                                     umath.less(x, self.a))
@@ -652,13 +652,13 @@ class _DomainGreaterEqual:
 
 class _MaskedUnaryOperation:
     """
-    Defines masked version of unary operations, where invalid values are
-    pre-masked.
+    Defines uncertain version of unary operations, where invalid values are
+    pre-uncertain.
 
     Parameters
     ----------
     mufunc : callable
-        The function for which to define a masked version. Made available
+        The function for which to define a uncertain version. Made available
         as ``_MaskedUnaryOperation.f``.
     fill : scalar, optional
         Filling value, default is 0.
@@ -686,8 +686,8 @@ class _MaskedUnaryOperation:
         # Deal with domain
         if self.domain is not None:
             # Case 1.1. : Domained function
-            # nans at masked positions cause RuntimeWarnings, even though
-            # they are masked. To avoid this we suppress warnings.
+            # nans at uncertain positions cause RuntimeWarnings, even though
+            # they are uncertain. To avoid this we suppress warnings.
             with np.errstate(divide='ignore', invalid='ignore'):
                 result = self.f(d, *args, **kwargs)
             # Make a mask
@@ -704,7 +704,7 @@ class _MaskedUnaryOperation:
         if not result.ndim:
             # Case 2.1. : The result is scalarscalar
             if m:
-                return masked
+                return uncertain
             return result
 
         if m is not nomask:
@@ -720,24 +720,24 @@ class _MaskedUnaryOperation:
             except TypeError:
                 pass
         # Transform to
-        masked_result = result.view(get_masked_subclass(a))
-        masked_result._mask = m
-        masked_result._update_from(a)
-        return masked_result
+        uncertain_result = result.view(get_uncertain_subclass(a))
+        uncertain_result._mask = m
+        uncertain_result._update_from(a)
+        return uncertain_result
 
     def __str__(self):
-        return "Masked version of %s. [Invalid values are masked]" % str(self.f)
+        return "Masked version of %s. [Invalid values are uncertain]" % str(self.f)
 
 
 class _MaskedBinaryOperation:
     """
-    Define masked version of binary operations, where invalid
-    values are pre-masked.
+    Define uncertain version of binary operations, where invalid
+    values are pre-uncertain.
 
     Parameters
     ----------
     mbfunc : function
-        The function for which to define a masked version. Made available
+        The function for which to define a uncertain version. Made available
         as ``_MaskedBinaryOperation.f``.
     domain : class instance
         Default domain for the function. Should be one of the ``_Domain*``
@@ -790,33 +790,33 @@ class _MaskedBinaryOperation:
         # Case 1. : scalar
         if not result.ndim:
             if m:
-                return masked
+                return uncertain
             return result
 
         # Case 2. : array
-        # Revert result to da where masked
+        # Revert result to da where uncertain
         if m is not nomask and m.any():
-            # any errors, just abort; impossible to guarantee masked values
+            # any errors, just abort; impossible to guarantee uncertain values
             try:
                 np.copyto(result, da, casting='unsafe', where=m)
             except:
                 pass
 
-        # Transforms to a (subclass of) MaskedArray
-        masked_result = result.view(get_masked_subclass(a, b))
-        masked_result._mask = m
-        if isinstance(a, MaskedArray):
-            masked_result._update_from(a)
-        elif isinstance(b, MaskedArray):
-            masked_result._update_from(b)
-        return masked_result
+        # Transforms to a (subclass of) UncertainArray
+        uncertain_result = result.view(get_uncertain_subclass(a, b))
+        uncertain_result._mask = m
+        if isinstance(a, UncertainArray):
+            uncertain_result._update_from(a)
+        elif isinstance(b, UncertainArray):
+            uncertain_result._update_from(b)
+        return uncertain_result
 
     def reduce(self, target, axis=0, dtype=None):
         """
         Reduce `target` along the given `axis`.
 
         """
-        tclass = get_masked_subclass(target)
+        tclass = get_uncertain_subclass(target)
         m = getmask(target)
         t = filled(target, self.filly)
         if t.shape == ():
@@ -834,12 +834,12 @@ class _MaskedBinaryOperation:
 
         if not tr.shape:
             if mr:
-                return masked
+                return uncertain
             else:
                 return tr
-        masked_tr = tr.view(tclass)
-        masked_tr._mask = mr
-        return masked_tr
+        uncertain_tr = tr.view(tclass)
+        uncertain_tr._mask = mr
+        return uncertain_tr
 
     def outer(self, a, b):
         """
@@ -857,25 +857,25 @@ class _MaskedBinaryOperation:
             mb = getmaskarray(b)
             m = umath.logical_or.outer(ma, mb)
         if (not m.ndim) and m:
-            return masked
+            return uncertain
         if m is not nomask:
             np.copyto(d, da, where=m)
         if not d.shape:
             return d
-        masked_d = d.view(get_masked_subclass(a, b))
-        masked_d._mask = m
-        return masked_d
+        uncertain_d = d.view(get_uncertain_subclass(a, b))
+        uncertain_d._mask = m
+        return uncertain_d
 
     def accumulate(self, target, axis=0):
         """Accumulate `target` along `axis` after filling with y fill
         value.
 
         """
-        tclass = get_masked_subclass(target)
+        tclass = get_uncertain_subclass(target)
         t = filled(target, self.filly)
         result = self.f.accumulate(t, axis)
-        masked_result = result.view(tclass)
-        return masked_result
+        uncertain_result = result.view(tclass)
+        return uncertain_result
 
     def __str__(self):
         return "Masked version of " + str(self.f)
@@ -890,7 +890,7 @@ class _DomainedBinaryOperation:
     Parameters
     ----------
     mbfunc : function
-        The function for which to define a masked version. Made available
+        The function for which to define a uncertain version. Made available
         as ``_DomainedBinaryOperation.f``.
     domain : class instance
         Default domain for the function. Should be one of the ``_Domain*``
@@ -933,29 +933,29 @@ class _DomainedBinaryOperation:
         # Take care of the scalar case first
         if (not m.ndim):
             if m:
-                return masked
+                return uncertain
             else:
                 return result
         # When the mask is True, put back da if possible
-        # any errors, just abort; impossible to guarantee masked values
+        # any errors, just abort; impossible to guarantee uncertain values
         try:
             np.copyto(result, 0, casting='unsafe', where=m)
             # avoid using "*" since this may be overlaid
-            masked_da = umath.multiply(m, da)
+            uncertain_da = umath.multiply(m, da)
             # only add back if it can be cast safely
-            if np.can_cast(masked_da.dtype, result.dtype, casting='safe'):
-                result += masked_da
+            if np.can_cast(uncertain_da.dtype, result.dtype, casting='safe'):
+                result += uncertain_da
         except:
             pass
 
-        # Transforms to a (subclass of) MaskedArray
-        masked_result = result.view(get_masked_subclass(a, b))
-        masked_result._mask = m
-        if isinstance(a, MaskedArray):
-            masked_result._update_from(a)
-        elif isinstance(b, MaskedArray):
-            masked_result._update_from(b)
-        return masked_result
+        # Transforms to a (subclass of) UncertainArray
+        uncertain_result = result.view(get_uncertain_subclass(a, b))
+        uncertain_result._mask = m
+        if isinstance(a, UncertainArray):
+            uncertain_result._update_from(a)
+        elif isinstance(b, UncertainArray):
+            uncertain_result._update_from(b)
+        return uncertain_result
 
     def __str__(self):
         return "Masked version of " + str(self.f)
@@ -1104,28 +1104,28 @@ def make_mask_descr(ndtype):
 
 def getmask(a):
     """
-    Return the mask of a masked array, or nomask.
+    Return the mask of a uncertain array, or nomask.
 
-    Return the mask of `a` as an ndarray if `a` is a `MaskedArray` and the
+    Return the mask of `a` as an ndarray if `a` is a `UncertainArray` and the
     mask is not `nomask`, else return `nomask`. To guarantee a full array
     of booleans of the same shape as a, use `getmaskarray`.
 
     Parameters
     ----------
     a : array_like
-        Input `MaskedArray` for which the mask is required.
+        Input `UncertainArray` for which the mask is required.
 
     See Also
     --------
-    getdata : Return the data of a masked array as an ndarray.
-    getmaskarray : Return the mask of a masked array, or full array of False.
+    getdata : Return the data of a uncertain array as an ndarray.
+    getmaskarray : Return the mask of a uncertain array, or full array of False.
 
     Examples
     --------
     >>> import numpy.ma as ma
-    >>> a = ma.masked_equal([[1,2],[3,4]], 2)
+    >>> a = ma.uncertain_equal([[1,2],[3,4]], 2)
     >>> a
-    masked_array(data =
+    uncertain_array(data =
      [[1 --]
      [3 4]],
           mask =
@@ -1136,7 +1136,7 @@ def getmask(a):
     array([[False,  True],
            [False, False]], dtype=bool)
 
-    Equivalently use the `MaskedArray` `mask` attribute.
+    Equivalently use the `UncertainArray` `mask` attribute.
 
     >>> a.mask
     array([[False,  True],
@@ -1144,9 +1144,9 @@ def getmask(a):
 
     Result when mask == `nomask`
 
-    >>> b = ma.masked_array([[1,2],[3,4]])
+    >>> b = ma.uncertain_array([[1,2],[3,4]])
     >>> b
-    masked_array(data =
+    uncertain_array(data =
      [[1 2]
      [3 4]],
           mask =
@@ -1168,28 +1168,28 @@ get_mask = getmask
 
 def getmaskarray(arr):
     """
-    Return the mask of a masked array, or full boolean array of False.
+    Return the mask of a uncertain array, or full boolean array of False.
 
-    Return the mask of `arr` as an ndarray if `arr` is a `MaskedArray` and
+    Return the mask of `arr` as an ndarray if `arr` is a `UncertainArray` and
     the mask is not `nomask`, else return a full boolean array of False of
     the same shape as `arr`.
 
     Parameters
     ----------
     arr : array_like
-        Input `MaskedArray` for which the mask is required.
+        Input `UncertainArray` for which the mask is required.
 
     See Also
     --------
-    getmask : Return the mask of a masked array, or nomask.
-    getdata : Return the data of a masked array as an ndarray.
+    getmask : Return the mask of a uncertain array, or nomask.
+    getdata : Return the data of a uncertain array as an ndarray.
 
     Examples
     --------
     >>> import numpy.ma as ma
-    >>> a = ma.masked_equal([[1,2],[3,4]], 2)
+    >>> a = ma.uncertain_equal([[1,2],[3,4]], 2)
     >>> a
-    masked_array(data =
+    uncertain_array(data =
      [[1 --]
      [3 4]],
           mask =
@@ -1202,9 +1202,9 @@ def getmaskarray(arr):
 
     Result when mask == ``nomask``
 
-    >>> b = ma.masked_array([[1,2],[3,4]])
+    >>> b = ma.uncertain_array([[1,2],[3,4]])
     >>> b
-    masked_array(data =
+    uncertain_array(data =
      [[1 2]
      [3 4]],
           mask =
@@ -1241,14 +1241,14 @@ def is_mask(m):
 
     See Also
     --------
-    isMaskedArray : Test whether input is an instance of MaskedArray.
+    isUncertainArray : Test whether input is an instance of UncertainArray.
 
     Examples
     --------
     >>> import numpy.ma as ma
-    >>> m = ma.masked_equal([0, 1, 0, 2, 3], 0)
+    >>> m = ma.uncertain_equal([0, 1, 0, 2, 3], 0)
     >>> m
-    masked_array(data = [-- 1 -- 2 3],
+    uncertain_array(data = [-- 1 -- 2 3],
           mask = [ True False  True False False],
           fill_value=999999)
     >>> ma.is_mask(m)
@@ -1455,7 +1455,7 @@ def mask_or(m1, m2, copy=False, shrink=True):
     Returns
     -------
     mask : output mask
-        The result masks values that are masked in either `m1` or `m2`.
+        The result masks values that are uncertain in either `m1` or `m2`.
 
     Raises
     ------
@@ -1557,7 +1557,7 @@ def flatten_mask(mask):
 
 
 def _check_mask_axis(mask, axis, keepdims=np._NoValue):
-    "Check whether there are masked values along the given axis"
+    "Check whether there are uncertain values along the given axis"
     kwargs = {} if keepdims is np._NoValue else {'keepdims': keepdims}
     if mask is not nomask:
         return mask.all(axis=axis, **kwargs)
@@ -1568,18 +1568,18 @@ def _check_mask_axis(mask, axis, keepdims=np._NoValue):
 #                             Masking functions                               #
 ###############################################################################
 
-def masked_where(condition, a, copy=True):
+def uncertain_where(condition, a, copy=True):
     """
     Mask an array where a condition is met.
 
-    Return `a` as an array masked where `condition` is True.
-    Any masked values of `a` or `condition` are also masked in the output.
+    Return `a` as an array uncertain where `condition` is True.
+    Any uncertain values of `a` or `condition` are also uncertain in the output.
 
     Parameters
     ----------
     condition : array_like
         Masking condition.  When `condition` tests floating point values for
-        equality, consider using ``masked_values`` instead.
+        equality, consider using ``uncertain_values`` instead.
     a : array_like
         Array to mask.
     copy : bool
@@ -1588,21 +1588,21 @@ def masked_where(condition, a, copy=True):
 
     Returns
     -------
-    result : MaskedArray
+    result : UncertainArray
         The result of masking `a` where `condition` is True.
 
     See Also
     --------
-    masked_values : Mask using floating point equality.
-    masked_equal : Mask where equal to a given value.
-    masked_not_equal : Mask where `not` equal to a given value.
-    masked_less_equal : Mask where less than or equal to a given value.
-    masked_greater_equal : Mask where greater than or equal to a given value.
-    masked_less : Mask where less than a given value.
-    masked_greater : Mask where greater than a given value.
-    masked_inside : Mask inside a given interval.
-    masked_outside : Mask outside a given interval.
-    masked_invalid : Mask invalid values (NaNs or infs).
+    uncertain_values : Mask using floating point equality.
+    uncertain_equal : Mask where equal to a given value.
+    uncertain_not_equal : Mask where `not` equal to a given value.
+    uncertain_less_equal : Mask where less than or equal to a given value.
+    uncertain_greater_equal : Mask where greater than or equal to a given value.
+    uncertain_less : Mask where less than a given value.
+    uncertain_greater : Mask where greater than a given value.
+    uncertain_inside : Mask inside a given interval.
+    uncertain_outside : Mask outside a given interval.
+    uncertain_invalid : Mask invalid values (NaNs or infs).
 
     Examples
     --------
@@ -1610,58 +1610,58 @@ def masked_where(condition, a, copy=True):
     >>> a = np.arange(4)
     >>> a
     array([0, 1, 2, 3])
-    >>> ma.masked_where(a <= 2, a)
-    masked_array(data = [-- -- -- 3],
+    >>> ma.uncertain_where(a <= 2, a)
+    uncertain_array(data = [-- -- -- 3],
           mask = [ True  True  True False],
           fill_value=999999)
 
     Mask array `b` conditional on `a`.
 
     >>> b = ['a', 'b', 'c', 'd']
-    >>> ma.masked_where(a == 2, b)
-    masked_array(data = [a b -- d],
+    >>> ma.uncertain_where(a == 2, b)
+    uncertain_array(data = [a b -- d],
           mask = [False False  True False],
           fill_value=N/A)
 
     Effect of the `copy` argument.
 
-    >>> c = ma.masked_where(a <= 2, a)
+    >>> c = ma.uncertain_where(a <= 2, a)
     >>> c
-    masked_array(data = [-- -- -- 3],
+    uncertain_array(data = [-- -- -- 3],
           mask = [ True  True  True False],
           fill_value=999999)
     >>> c[0] = 99
     >>> c
-    masked_array(data = [99 -- -- 3],
+    uncertain_array(data = [99 -- -- 3],
           mask = [False  True  True False],
           fill_value=999999)
     >>> a
     array([0, 1, 2, 3])
-    >>> c = ma.masked_where(a <= 2, a, copy=False)
+    >>> c = ma.uncertain_where(a <= 2, a, copy=False)
     >>> c[0] = 99
     >>> c
-    masked_array(data = [99 -- -- 3],
+    uncertain_array(data = [99 -- -- 3],
           mask = [False  True  True False],
           fill_value=999999)
     >>> a
     array([99,  1,  2,  3])
 
-    When `condition` or `a` contain masked values.
+    When `condition` or `a` contain uncertain values.
 
     >>> a = np.arange(4)
-    >>> a = ma.masked_where(a == 2, a)
+    >>> a = ma.uncertain_where(a == 2, a)
     >>> a
-    masked_array(data = [0 1 -- 3],
+    uncertain_array(data = [0 1 -- 3],
           mask = [False False  True False],
           fill_value=999999)
     >>> b = np.arange(4)
-    >>> b = ma.masked_where(b == 0, b)
+    >>> b = ma.uncertain_where(b == 0, b)
     >>> b
-    masked_array(data = [-- 1 2 3],
+    uncertain_array(data = [-- 1 2 3],
           mask = [ True False False False],
           fill_value=999999)
-    >>> ma.masked_where(a == 3, b)
-    masked_array(data = [-- 1 -- --],
+    >>> ma.uncertain_where(a == 3, b)
+    uncertain_array(data = [-- 1 -- --],
           mask = [ True False  True  True],
           fill_value=999999)
 
@@ -1678,23 +1678,23 @@ def masked_where(condition, a, copy=True):
         cond = mask_or(cond, a._mask)
         cls = type(a)
     else:
-        cls = MaskedArray
+        cls = UncertainArray
     result = a.view(cls)
     # Assign to *.mask so that structured masks are handled correctly.
     result.mask = cond
     return result
 
 
-def masked_greater(x, value, copy=True):
+def uncertain_greater(x, value, copy=True):
     """
     Mask an array where greater than a given value.
 
-    This function is a shortcut to ``masked_where``, with
+    This function is a shortcut to ``uncertain_where``, with
     `condition` = (x > value).
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
+    uncertain_where : Mask where a condition is met.
 
     Examples
     --------
@@ -1702,25 +1702,25 @@ def masked_greater(x, value, copy=True):
     >>> a = np.arange(4)
     >>> a
     array([0, 1, 2, 3])
-    >>> ma.masked_greater(a, 2)
-    masked_array(data = [0 1 2 --],
+    >>> ma.uncertain_greater(a, 2)
+    uncertain_array(data = [0 1 2 --],
           mask = [False False False  True],
           fill_value=999999)
 
     """
-    return masked_where(greater(x, value), x, copy=copy)
+    return uncertain_where(greater(x, value), x, copy=copy)
 
 
-def masked_greater_equal(x, value, copy=True):
+def uncertain_greater_equal(x, value, copy=True):
     """
     Mask an array where greater than or equal to a given value.
 
-    This function is a shortcut to ``masked_where``, with
+    This function is a shortcut to ``uncertain_where``, with
     `condition` = (x >= value).
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
+    uncertain_where : Mask where a condition is met.
 
     Examples
     --------
@@ -1728,25 +1728,25 @@ def masked_greater_equal(x, value, copy=True):
     >>> a = np.arange(4)
     >>> a
     array([0, 1, 2, 3])
-    >>> ma.masked_greater_equal(a, 2)
-    masked_array(data = [0 1 -- --],
+    >>> ma.uncertain_greater_equal(a, 2)
+    uncertain_array(data = [0 1 -- --],
           mask = [False False  True  True],
           fill_value=999999)
 
     """
-    return masked_where(greater_equal(x, value), x, copy=copy)
+    return uncertain_where(greater_equal(x, value), x, copy=copy)
 
 
-def masked_less(x, value, copy=True):
+def uncertain_less(x, value, copy=True):
     """
     Mask an array where less than a given value.
 
-    This function is a shortcut to ``masked_where``, with
+    This function is a shortcut to ``uncertain_where``, with
     `condition` = (x < value).
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
+    uncertain_where : Mask where a condition is met.
 
     Examples
     --------
@@ -1754,25 +1754,25 @@ def masked_less(x, value, copy=True):
     >>> a = np.arange(4)
     >>> a
     array([0, 1, 2, 3])
-    >>> ma.masked_less(a, 2)
-    masked_array(data = [-- -- 2 3],
+    >>> ma.uncertain_less(a, 2)
+    uncertain_array(data = [-- -- 2 3],
           mask = [ True  True False False],
           fill_value=999999)
 
     """
-    return masked_where(less(x, value), x, copy=copy)
+    return uncertain_where(less(x, value), x, copy=copy)
 
 
-def masked_less_equal(x, value, copy=True):
+def uncertain_less_equal(x, value, copy=True):
     """
     Mask an array where less than or equal to a given value.
 
-    This function is a shortcut to ``masked_where``, with
+    This function is a shortcut to ``uncertain_where``, with
     `condition` = (x <= value).
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
+    uncertain_where : Mask where a condition is met.
 
     Examples
     --------
@@ -1780,25 +1780,25 @@ def masked_less_equal(x, value, copy=True):
     >>> a = np.arange(4)
     >>> a
     array([0, 1, 2, 3])
-    >>> ma.masked_less_equal(a, 2)
-    masked_array(data = [-- -- -- 3],
+    >>> ma.uncertain_less_equal(a, 2)
+    uncertain_array(data = [-- -- -- 3],
           mask = [ True  True  True False],
           fill_value=999999)
 
     """
-    return masked_where(less_equal(x, value), x, copy=copy)
+    return uncertain_where(less_equal(x, value), x, copy=copy)
 
 
-def masked_not_equal(x, value, copy=True):
+def uncertain_not_equal(x, value, copy=True):
     """
     Mask an array where `not` equal to a given value.
 
-    This function is a shortcut to ``masked_where``, with
+    This function is a shortcut to ``uncertain_where``, with
     `condition` = (x != value).
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
+    uncertain_where : Mask where a condition is met.
 
     Examples
     --------
@@ -1806,27 +1806,27 @@ def masked_not_equal(x, value, copy=True):
     >>> a = np.arange(4)
     >>> a
     array([0, 1, 2, 3])
-    >>> ma.masked_not_equal(a, 2)
-    masked_array(data = [-- -- 2 --],
+    >>> ma.uncertain_not_equal(a, 2)
+    uncertain_array(data = [-- -- 2 --],
           mask = [ True  True False  True],
           fill_value=999999)
 
     """
-    return masked_where(not_equal(x, value), x, copy=copy)
+    return uncertain_where(not_equal(x, value), x, copy=copy)
 
 
-def masked_equal(x, value, copy=True):
+def uncertain_equal(x, value, copy=True):
     """
     Mask an array where equal to a given value.
 
-    This function is a shortcut to ``masked_where``, with
+    This function is a shortcut to ``uncertain_where``, with
     `condition` = (x == value).  For floating point arrays,
-    consider using ``masked_values(x, value)``.
+    consider using ``uncertain_values(x, value)``.
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
-    masked_values : Mask using floating point equality.
+    uncertain_where : Mask where a condition is met.
+    uncertain_values : Mask using floating point equality.
 
     Examples
     --------
@@ -1834,28 +1834,28 @@ def masked_equal(x, value, copy=True):
     >>> a = np.arange(4)
     >>> a
     array([0, 1, 2, 3])
-    >>> ma.masked_equal(a, 2)
-    masked_array(data = [0 1 -- 3],
+    >>> ma.uncertain_equal(a, 2)
+    uncertain_array(data = [0 1 -- 3],
           mask = [False False  True False],
           fill_value=999999)
 
     """
-    output = masked_where(equal(x, value), x, copy=copy)
+    output = uncertain_where(equal(x, value), x, copy=copy)
     output.fill_value = value
     return output
 
 
-def masked_inside(x, v1, v2, copy=True):
+def uncertain_inside(x, v1, v2, copy=True):
     """
     Mask an array inside a given interval.
 
-    Shortcut to ``masked_where``, where `condition` is True for `x` inside
+    Shortcut to ``uncertain_where``, where `condition` is True for `x` inside
     the interval [v1,v2] (v1 <= x <= v2).  The boundaries `v1` and `v2`
     can be given in either order.
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
+    uncertain_where : Mask where a condition is met.
 
     Notes
     -----
@@ -1865,15 +1865,15 @@ def masked_inside(x, v1, v2, copy=True):
     --------
     >>> import numpy.ma as ma
     >>> x = [0.31, 1.2, 0.01, 0.2, -0.4, -1.1]
-    >>> ma.masked_inside(x, -0.3, 0.3)
-    masked_array(data = [0.31 1.2 -- -- -0.4 -1.1],
+    >>> ma.uncertain_inside(x, -0.3, 0.3)
+    uncertain_array(data = [0.31 1.2 -- -- -0.4 -1.1],
           mask = [False False  True  True False False],
           fill_value=1e+20)
 
     The order of `v1` and `v2` doesn't matter.
 
-    >>> ma.masked_inside(x, 0.3, -0.3)
-    masked_array(data = [0.31 1.2 -- -- -0.4 -1.1],
+    >>> ma.uncertain_inside(x, 0.3, -0.3)
+    uncertain_array(data = [0.31 1.2 -- -- -0.4 -1.1],
           mask = [False False  True  True False False],
           fill_value=1e+20)
 
@@ -1882,20 +1882,20 @@ def masked_inside(x, v1, v2, copy=True):
         (v1, v2) = (v2, v1)
     xf = filled(x)
     condition = (xf >= v1) & (xf <= v2)
-    return masked_where(condition, x, copy=copy)
+    return uncertain_where(condition, x, copy=copy)
 
 
-def masked_outside(x, v1, v2, copy=True):
+def uncertain_outside(x, v1, v2, copy=True):
     """
     Mask an array outside a given interval.
 
-    Shortcut to ``masked_where``, where `condition` is True for `x` outside
+    Shortcut to ``uncertain_where``, where `condition` is True for `x` outside
     the interval [v1,v2] (x < v1)|(x > v2).
     The boundaries `v1` and `v2` can be given in either order.
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
+    uncertain_where : Mask where a condition is met.
 
     Notes
     -----
@@ -1905,15 +1905,15 @@ def masked_outside(x, v1, v2, copy=True):
     --------
     >>> import numpy.ma as ma
     >>> x = [0.31, 1.2, 0.01, 0.2, -0.4, -1.1]
-    >>> ma.masked_outside(x, -0.3, 0.3)
-    masked_array(data = [-- -- 0.01 0.2 -- --],
+    >>> ma.uncertain_outside(x, -0.3, 0.3)
+    uncertain_array(data = [-- -- 0.01 0.2 -- --],
           mask = [ True  True False False  True  True],
           fill_value=1e+20)
 
     The order of `v1` and `v2` doesn't matter.
 
-    >>> ma.masked_outside(x, 0.3, -0.3)
-    masked_array(data = [-- -- 0.01 0.2 -- --],
+    >>> ma.uncertain_outside(x, 0.3, -0.3)
+    uncertain_array(data = [-- -- 0.01 0.2 -- --],
           mask = [ True  True False False  True  True],
           fill_value=1e+20)
 
@@ -1922,15 +1922,15 @@ def masked_outside(x, v1, v2, copy=True):
         (v1, v2) = (v2, v1)
     xf = filled(x)
     condition = (xf < v1) | (xf > v2)
-    return masked_where(condition, x, copy=copy)
+    return uncertain_where(condition, x, copy=copy)
 
 
-def masked_object(x, value, copy=True, shrink=True):
+def uncertain_object(x, value, copy=True, shrink=True):
     """
     Mask the array `x` where the data are exactly equal to value.
 
-    This function is similar to `masked_values`, but only suitable
-    for object arrays: for floating point, use `masked_values` instead.
+    This function is similar to `uncertain_values`, but only suitable
+    for object arrays: for floating point, use `uncertain_values` instead.
 
     Parameters
     ----------
@@ -1945,58 +1945,58 @@ def masked_object(x, value, copy=True, shrink=True):
 
     Returns
     -------
-    result : MaskedArray
+    result : UncertainArray
         The result of masking `x` where equal to `value`.
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
-    masked_equal : Mask where equal to a given value (integers).
-    masked_values : Mask using floating point equality.
+    uncertain_where : Mask where a condition is met.
+    uncertain_equal : Mask where equal to a given value (integers).
+    uncertain_values : Mask using floating point equality.
 
     Examples
     --------
     >>> import numpy.ma as ma
     >>> food = np.array(['green_eggs', 'ham'], dtype=object)
     >>> # don't eat spoiled food
-    >>> eat = ma.masked_object(food, 'green_eggs')
+    >>> eat = ma.uncertain_object(food, 'green_eggs')
     >>> print(eat)
     [-- ham]
     >>> # plain ol` ham is boring
     >>> fresh_food = np.array(['cheese', 'ham', 'pineapple'], dtype=object)
-    >>> eat = ma.masked_object(fresh_food, 'green_eggs')
+    >>> eat = ma.uncertain_object(fresh_food, 'green_eggs')
     >>> print(eat)
     [cheese ham pineapple]
 
     Note that `mask` is set to ``nomask`` if possible.
 
     >>> eat
-    masked_array(data = [cheese ham pineapple],
+    uncertain_array(data = [cheese ham pineapple],
           mask = False,
           fill_value=?)
 
     """
-    if isMaskedArray(x):
+    if isUncertainArray(x):
         condition = umath.equal(x._data, value)
         mask = x._mask
     else:
         condition = umath.equal(np.asarray(x), value)
         mask = nomask
     mask = mask_or(mask, make_mask(condition, shrink=shrink))
-    return masked_array(x, mask=mask, copy=copy, fill_value=value)
+    return uncertain_array(x, mask=mask, copy=copy, fill_value=value)
 
 
-def masked_values(x, value, rtol=1e-5, atol=1e-8, copy=True, shrink=True):
+def uncertain_values(x, value, rtol=1e-5, atol=1e-8, copy=True, shrink=True):
     """
     Mask using floating point equality.
 
-    Return a MaskedArray, masked where the data in array `x` are approximately
+    Return a UncertainArray, uncertain where the data in array `x` are approximately
     equal to `value`, i.e. where the following condition is True
 
     (abs(x - value) <= atol+rtol*abs(value))
 
     The fill_value is set to `value` and the mask is set to ``nomask`` if
-    possible.  For integers, consider using ``masked_equal``.
+    possible.  For integers, consider using ``uncertain_equal``.
 
     Parameters
     ----------
@@ -2015,42 +2015,42 @@ def masked_values(x, value, rtol=1e-5, atol=1e-8, copy=True, shrink=True):
 
     Returns
     -------
-    result : MaskedArray
+    result : UncertainArray
         The result of masking `x` where approximately equal to `value`.
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
-    masked_equal : Mask where equal to a given value (integers).
+    uncertain_where : Mask where a condition is met.
+    uncertain_equal : Mask where equal to a given value (integers).
 
     Examples
     --------
     >>> import numpy.ma as ma
     >>> x = np.array([1, 1.1, 2, 1.1, 3])
-    >>> ma.masked_values(x, 1.1)
-    masked_array(data = [1.0 -- 2.0 -- 3.0],
+    >>> ma.uncertain_values(x, 1.1)
+    uncertain_array(data = [1.0 -- 2.0 -- 3.0],
           mask = [False  True False  True False],
           fill_value=1.1)
 
     Note that `mask` is set to ``nomask`` if possible.
 
-    >>> ma.masked_values(x, 1.5)
-    masked_array(data = [ 1.   1.1  2.   1.1  3. ],
+    >>> ma.uncertain_values(x, 1.5)
+    uncertain_array(data = [ 1.   1.1  2.   1.1  3. ],
           mask = False,
           fill_value=1.5)
 
     For integers, the fill value will be different in general to the
-    result of ``masked_equal``.
+    result of ``uncertain_equal``.
 
     >>> x = np.arange(5)
     >>> x
     array([0, 1, 2, 3, 4])
-    >>> ma.masked_values(x, 2)
-    masked_array(data = [0 1 -- 3 4],
+    >>> ma.uncertain_values(x, 2)
+    uncertain_array(data = [0 1 -- 3 4],
           mask = [False False  True False False],
           fill_value=2)
-    >>> ma.masked_equal(x, 2)
-    masked_array(data = [0 1 -- 3 4],
+    >>> ma.uncertain_equal(x, 2)
+    uncertain_array(data = [0 1 -- 3 4],
           mask = [False False  True False False],
           fill_value=999999)
 
@@ -2065,21 +2065,21 @@ def masked_values(x, value, rtol=1e-5, atol=1e-8, copy=True, shrink=True):
         condition = umath.equal(xnew, value)
         mask = nomask
     mask = mask_or(mask, make_mask(condition, shrink=shrink), shrink=shrink)
-    return masked_array(xnew, mask=mask, copy=copy, fill_value=value)
+    return uncertain_array(xnew, mask=mask, copy=copy, fill_value=value)
 
 
-def masked_invalid(a, copy=True):
+def uncertain_invalid(a, copy=True):
     """
     Mask an array where invalid values occur (NaNs or infs).
 
-    This function is a shortcut to ``masked_where``, with
+    This function is a shortcut to ``uncertain_where``, with
     `condition` = ~(np.isfinite(a)). Any pre-existing mask is conserved.
     Only applies to arrays with a dtype where NaNs or infs make sense
     (i.e. floating point types), but accepts any array_like object.
 
     See Also
     --------
-    masked_where : Mask where a condition is met.
+    uncertain_where : Mask where a condition is met.
 
     Examples
     --------
@@ -2089,8 +2089,8 @@ def masked_invalid(a, copy=True):
     >>> a[3] = np.PINF
     >>> a
     array([  0.,   1.,  NaN,  Inf,   4.])
-    >>> ma.masked_invalid(a)
-    masked_array(data = [0.0 1.0 -- -- 4.0],
+    >>> ma.uncertain_invalid(a)
+    uncertain_array(data = [0.0 1.0 -- -- 4.0],
           mask = [False False  True  True False],
           fill_value=1e+20)
 
@@ -2104,7 +2104,7 @@ def masked_invalid(a, copy=True):
         cls = type(a)
     else:
         condition = ~(np.isfinite(a))
-        cls = MaskedArray
+        cls = UncertainArray
     result = a.view(cls)
     result._mask = condition
     return result
@@ -2117,13 +2117,13 @@ def masked_invalid(a, copy=True):
 
 class _MaskedPrintOption:
     """
-    Handle the string used to represent missing data in a masked array.
+    Handle the string used to represent missing data in a uncertain array.
 
     """
 
     def __init__(self, display):
         """
-        Create the masked_print_option object.
+        Create the uncertain_print_option object.
 
         """
         self._display = display
@@ -2131,14 +2131,14 @@ class _MaskedPrintOption:
 
     def display(self):
         """
-        Display the string to print for masked values.
+        Display the string to print for uncertain values.
 
         """
         return self._display
 
     def set_display(self, s):
         """
-        Set the string to print for masked values.
+        Set the string to print for uncertain values.
 
         """
         self._display = s
@@ -2162,8 +2162,8 @@ class _MaskedPrintOption:
 
     __repr__ = __str__
 
-# if you single index into a masked location you get this object.
-masked_print_option = _MaskedPrintOption('--')
+# if you single index into a uncertain location you get this object.
+uncertain_print_option = _MaskedPrintOption('--')
 
 
 def _recursive_printoption(result, mask, printopt):
@@ -2183,19 +2183,19 @@ def _recursive_printoption(result, mask, printopt):
     return
 
 _print_templates = dict(long_std="""\
-masked_%(name)s(data =
+uncertain_%(name)s(data =
  %(data)s,
        %(nlen)s mask =
  %(mask)s,
  %(nlen)s fill_value = %(fill)s)
 """,
                         short_std="""\
-masked_%(name)s(data = %(data)s,
+uncertain_%(name)s(data = %(data)s,
        %(nlen)s mask = %(mask)s,
 %(nlen)s  fill_value = %(fill)s)
 """,
                         long_flx="""\
-masked_%(name)s(data =
+uncertain_%(name)s(data =
  %(data)s,
        %(nlen)s mask =
  %(mask)s,
@@ -2203,14 +2203,14 @@ masked_%(name)s(data =
       %(nlen)s dtype = %(dtype)s)
 """,
                         short_flx="""\
-masked_%(name)s(data = %(data)s,
+uncertain_%(name)s(data = %(data)s,
 %(nlen)s        mask = %(mask)s,
 %(nlen)s  fill_value = %(fill)s,
 %(nlen)s       dtype = %(dtype)s)
 """)
 
 ###############################################################################
-#                          MaskedArray class                                  #
+#                          UncertainArray class                                  #
 ###############################################################################
 
 
@@ -2241,8 +2241,8 @@ def flatten_structured_array(a):
 
     Returns
     -------
-    output : masked array or ndarray
-        A flattened masked array if the input is a masked array, otherwise a
+    output : uncertain array or ndarray
+        A flattened uncertain array if the input is a uncertain array, otherwise a
         standard ndarray.
 
     Examples
@@ -2270,9 +2270,9 @@ def flatten_structured_array(a):
     a = np.asanyarray(a)
     inishape = a.shape
     a = a.ravel()
-    if isinstance(a, MaskedArray):
+    if isinstance(a, UncertainArray):
         out = np.array([tuple(flatten_sequence(d.item())) for d in a._data])
-        out = out.view(MaskedArray)
+        out = out.view(UncertainArray)
         out._mask = np.array([tuple(flatten_sequence(d.item()))
                               for d in getmaskarray(a)])
     else:
@@ -2288,7 +2288,7 @@ def _arraymethod(funcname, onmask=True):
     """
     Return a class method wrapper around a basic array method.
 
-    Creates a class method which returns a masked array, where the new
+    Creates a class method which returns a uncertain array, where the new
     ``_data`` array is the output of the corresponding basic method called
     on the original ``_data``.
 
@@ -2323,7 +2323,7 @@ def _arraymethod(funcname, onmask=True):
                 result.__setmask__(getattr(mask, funcname)(*args, **params))
         else:
             if mask.ndim and (not mask.dtype.names and mask.all()):
-                return masked
+                return uncertain
         return result
     methdoc = getattr(ndarray, funcname, None) or getattr(np, funcname, None)
     if methdoc is not None:
@@ -2332,11 +2332,11 @@ def _arraymethod(funcname, onmask=True):
     return wrapped_method
 
 
-class MaskedIterator(object):
+class UncertainIterator(object):
     """
-    Flat iterator object to iterate over masked arrays.
+    Flat iterator object to iterate over uncertain arrays.
 
-    A `MaskedIterator` iterator is returned by ``x.flat`` for any masked array
+    A `MaskedIterator` iterator is returned by ``x.flat`` for any uncertain array
     `x`. It allows iterating over the array as if it were a 1-D array,
     either in a for-loop or by calling its `next` method.
 
@@ -2346,13 +2346,13 @@ class MaskedIterator(object):
 
     See Also
     --------
-    MaskedArray.flat : Return a flat iterator over an array.
-    MaskedArray.flatten : Returns a flattened copy of an array.
+    UncertainArray.flat : Return a flat iterator over an array.
+    UncertainArray.flatten : Returns a flattened copy of an array.
 
     Notes
     -----
     `MaskedIterator` is not exported by the `ma` module. Instead of
-    instantiating a `MaskedIterator` directly, use `MaskedArray.flat`.
+    instantiating a `MaskedIterator` directly, use `UncertainArray.flat`.
 
     Examples
     --------
@@ -2371,10 +2371,10 @@ class MaskedIterator(object):
     5
 
     Extracting more than a single element b indexing the `MaskedIterator`
-    returns a masked array:
+    returns a uncertain array:
 
     >>> fl[2:4]
-    masked_array(data = [2 3],
+    uncertain_array(data = [2 3],
                  mask = False,
            fill_value = 999999)
 
@@ -2402,8 +2402,8 @@ class MaskedIterator(object):
                 result._mask = _mask
             elif isinstance(_mask, np.void):
                 return mvoid(result, mask=_mask, hardmask=self.ma._hardmask)
-            elif _mask:  # Just a scalar, masked
-                return masked
+            elif _mask:  # Just a scalar, uncertain
+                return uncertain
         return result
 
     # This won't work if ravel makes a copy
@@ -2423,7 +2423,7 @@ class MaskedIterator(object):
         >>> fl.next()
         3
         >>> fl.next()
-        masked_array(data = --,
+        uncertain_array(data = --,
                      mask = True,
                fill_value = 1e+20)
         >>> fl.next()
@@ -2439,23 +2439,23 @@ class MaskedIterator(object):
             m = next(self.maskiter)
             if isinstance(m, np.void):
                 return mvoid(d, mask=m, hardmask=self.ma._hardmask)
-            elif m:  # Just a scalar, masked
-                return masked
+            elif m:  # Just a scalar, uncertain
+                return uncertain
         return d
 
     next = __next__
 
 
-class UncertaintyArray(ndarray):
+class UncertainArray(ndarray):
     """
-    An array class with possibly masked values.
+    An array class with possibly uncertain values.
 
     Masked values of True exclude the corresponding element from any
     computation.
 
     Construction::
 
-      x = MaskedArray(data, mask=nomask, dtype=None, copy=False, subok=True,
+      x = UncertainArray(data, mask=nomask, dtype=None, copy=False, subok=True,
                       ndmin=0, fill_value=None, keep_mask=True, hard_mask=None,
                       shrink=True, order=None)
 
@@ -2465,7 +2465,7 @@ class UncertaintyArray(ndarray):
         Input data.
     mask : sequence, optional
         Mask. Must be convertible to an array of booleans with the same
-        shape as `data`. True indicates a masked (i.e. invalid) data.
+        shape as `data`. True indicates a uncertain (i.e. invalid) data.
     dtype : dtype, optional
         Data type of the output.
         If `dtype` is None, the type of the data argument (``data.dtype``)
@@ -2475,19 +2475,19 @@ class UncertaintyArray(ndarray):
         Whether to copy the input data (True), or to use a reference instead.
         Default is False.
     subok : bool, optional
-        Whether to return a subclass of `MaskedArray` if possible (True) or a
-        plain `MaskedArray`. Default is True.
+        Whether to return a subclass of `UncertainArray` if possible (True) or a
+        plain `UncertainArray`. Default is True.
     ndmin : int, optional
         Minimum number of dimensions. Default is 0.
     fill_value : scalar, optional
-        Value used to fill in the masked values when necessary.
+        Value used to fill in the uncertain values when necessary.
         If None, a default based on the data-type is used.
     keep_mask : bool, optional
         Whether to combine `mask` with the mask of the input data, if any
         (True), or to use only `mask` for the output (False). Default is True.
     hard_mask : bool, optional
-        Whether to use a hard mask or not. With a hard mask, masked values
-        cannot be unmasked. Default is False.
+        Whether to use a hard mask or not. With a hard mask, uncertain values
+        cannot be ununcertain. Default is False.
     shrink : bool, optional
         Whether to force compression of an empty mask. Default is True.
     order : {'C', 'F', 'A'}, optional
@@ -2511,15 +2511,15 @@ class UncertaintyArray(ndarray):
     _print_width = 100
     _print_width_1d = 1500
 
-    def __new__(cls, data=None, mask=nomask, dtype=None, copy=False,
-                subok=True, ndmin=0, fill_value=None, keep_mask=True,
+    def __new__(cls, mean=None, std=None, dtype=None, copy=False,
+                subok=True, ndmin=0,
                 hard_mask=None, shrink=True, order=None, **options):
         """
-        Create a new masked array from scratch.
+        Create a new uncertain array from scratch.
 
         Notes
         -----
-        A masked array can also be created by taking a .view(MaskedArray).
+        A uncertain array can also be created by taking a .view(UncertainArray).
 
         """
         # Process data.
@@ -2527,9 +2527,9 @@ class UncertaintyArray(ndarray):
                          order=order, subok=True, ndmin=ndmin)
         _baseclass = getattr(data, '_baseclass', type(_data))
         # Check that we're not erasing the mask.
-        if isinstance(data, MaskedArray) and (data.shape != _data.shape):
+        if isinstance(data, UncertainArray) and (data.shape != _data.shape):
             copy = True
-        # Careful, cls might not always be MaskedArray.
+        # Careful, cls might not always be UncertainArray.
         if not isinstance(data, cls) or not subok:
             _data = ndarray.view(_data, cls)
         else:
@@ -2561,7 +2561,7 @@ class UncertaintyArray(ndarray):
             # Check whether we missed something
             elif isinstance(data, (tuple, list)):
                 try:
-                    # If data is a sequence of masked array
+                    # If data is a sequence of uncertain array
                     mask = np.array([getmaskarray(m) for m in data],
                                     dtype=mdtype)
                 except ValueError:
@@ -2658,7 +2658,7 @@ class UncertaintyArray(ndarray):
         _optinfo = {}
         _optinfo.update(getattr(obj, '_optinfo', {}))
         _optinfo.update(getattr(obj, '_basedict', {}))
-        if not isinstance(obj, MaskedArray):
+        if not isinstance(obj, UncertainArray):
             _optinfo.update(getattr(obj, '__dict__', {}))
         _dict = dict(_fill_value=getattr(obj, '_fill_value', None),
                      _hardmask=getattr(obj, '_hardmask', False),
@@ -2673,7 +2673,7 @@ class UncertaintyArray(ndarray):
 
     def __array_finalize__(self, obj):
         """
-        Finalizes the masked array.
+        Finalizes the uncertain array.
 
         """
         # Get main attributes.
@@ -2690,7 +2690,7 @@ class UncertaintyArray(ndarray):
         # guesswork and heuristics. To make things worse, there isn't even any
         # clear consensus about what the desired behavior is. For instance,
         # most users think that np.empty_like(marr) -- which goes via this
-        # method -- should return a masked array with an empty mask (see
+        # method -- should return a uncertain array with an empty mask (see
         # gh-3404 and linked discussions), but others disagree, and they have
         # existing code which depends on empty_like returning an array that
         # matches the input mask.
@@ -2790,7 +2790,7 @@ class UncertaintyArray(ndarray):
 
             # Make sure the mask has the proper size
             if result.shape == () and m:
-                return masked
+                return uncertain
             else:
                 result._mask = m
                 result._sharedmask = False
@@ -2799,7 +2799,7 @@ class UncertaintyArray(ndarray):
 
     def view(self, dtype=None, type=None, fill_value=None):
         """
-        Return a view of the MaskedArray data
+        Return a view of the UncertainArray data
 
         Parameters
         ----------
@@ -2829,7 +2829,7 @@ class UncertaintyArray(ndarray):
         memory.
 
         If `fill_value` is not specified, but `dtype` is specified (and is not
-        an ndarray sub-class), the `fill_value` of the MaskedArray will be
+        an ndarray sub-class), the `fill_value` of the UncertainArray will be
         reset. If neither `fill_value` nor `dtype` are specified (or if
         `dtype` is an ndarray sub-class), then the fill value is preserved.
         Finally, if `fill_value` is specified, but `dtype` is not, the fill
@@ -2864,7 +2864,7 @@ class UncertaintyArray(ndarray):
 
         # also make the mask be a view (so attr changes to the view's
         # mask do no affect original object's mask)
-        # (especially important to avoid affecting np.masked singleton)
+        # (especially important to avoid affecting np.uncertain singleton)
         if (getattr(output, '_mask', nomask) is not nomask):
             output._mask = output._mask.view()
 
@@ -2882,11 +2882,11 @@ class UncertaintyArray(ndarray):
 
     def astype(self, newtype):
         """
-        Returns a copy of the MaskedArray cast to given newtype.
+        Returns a copy of the UncertainArray cast to given newtype.
 
         Returns
         -------
-        output : MaskedArray
+        output : UncertainArray
             A copy of self cast to input newtype.
             The returned record shape matches self.shape.
 
@@ -2923,7 +2923,7 @@ class UncertaintyArray(ndarray):
         """
         x.__getitem__(y) <==> x[y]
 
-        Return the item described by i, as a masked array.
+        Return the item described by i, as a uncertain array.
 
         """
         dout = self.data[indx]
@@ -2938,17 +2938,17 @@ class UncertaintyArray(ndarray):
             if isinstance(dout, np.void):
                 mask = _mask[indx]
                 # We should always re-cast to mvoid, otherwise users can
-                # change masks on rows that already have masked values, but not
-                # on rows that have no masked values, which is inconsistent.
+                # change masks on rows that already have uncertain values, but not
+                # on rows that have no uncertain values, which is inconsistent.
                 dout = mvoid(dout, mask=mask, hardmask=self._hardmask)
             # Just a scalar
             elif _mask is not nomask and _mask[indx]:
-                return masked
+                return uncertain
         elif self.dtype.type is np.object_ and self.dtype is not dout.dtype:
             # self contains an object array of arrays (yes, that happens).
-            # If masked, turn into a MaskedArray, with everything masked.
+            # If uncertain, turn into a UncertainArray, with everything uncertain.
             if _mask is not nomask and _mask[indx]:
-                return MaskedArray(dout, mask=True)
+                return UncertainArray(dout, mask=True)
         else:
             # Force dout to MA
             dout = dout.view(type(self))
@@ -2993,12 +2993,12 @@ class UncertaintyArray(ndarray):
         """
         x.__setitem__(i, y) <==> x[i]=y
 
-        Set item described by index. If value is masked, masks those
+        Set item described by index. If value is uncertain, masks those
         locations.
 
         """
-        if self is masked:
-            raise MaskError('Cannot alter the masked element.')
+        if self is uncertain:
+            raise MaskError('Cannot alter the uncertain element.')
         _data = self._data
         _mask = self._mask
         if isinstance(indx, basestring):
@@ -3011,7 +3011,7 @@ class UncertaintyArray(ndarray):
         _dtype = _data.dtype
         nbfields = len(_dtype.names or ())
 
-        if value is masked:
+        if value is uncertain:
             # The mask wasn't set: create a full version.
             if _mask is nomask:
                 _mask = self._mask = make_mask_none(self.shape, _dtype)
@@ -3042,12 +3042,6 @@ class UncertaintyArray(ndarray):
             # future. Note that _sharedmask has lots of false positives.
             if not self._isfield:
                 notthree = getattr(sys, 'getrefcount', False) and (sys.getrefcount(_mask) != 3)
-                if self._sharedmask and not (
-                        # If no one else holds a reference (we have two
-                        # references (_mask and self._mask) -- add one for
-                        # getrefcount) and the array owns its own data
-                        # copying the mask should do nothing.
-                        (not notthree) and _mask.flags.owndata):
                 self.unshare_mask()
                 _mask = self._mask
             # Set the data, then the mask
@@ -3071,7 +3065,7 @@ class UncertaintyArray(ndarray):
         return
 
     def __setattr__(self, attr, value):
-        super(MaskedArray, self).__setattr__(attr, value)
+        super(UncertainArray, self).__setattr__(attr, value)
         if attr == 'dtype' and self._mask is not nomask:
             self._mask = self._mask.view(make_mask_descr(value), ndarray)
             # Try to reset the shape of the mask (if we don't have a void)
@@ -3095,7 +3089,7 @@ class UncertaintyArray(ndarray):
         """
         x.__setslice__(i, j, value) <==> x[i:j]=value
 
-        Set the slice (i,j) of a to value. If value is masked, mask those
+        Set the slice (i,j) of a to value. If value is uncertain, mask those
         locations.
 
         """
@@ -3108,7 +3102,7 @@ class UncertaintyArray(ndarray):
         """
         idtype = self.dtype
         current_mask = self._mask
-        if mask is masked:
+        if mask is uncertain:
             mask = True
 
         if (current_mask is nomask):
@@ -3186,7 +3180,7 @@ class UncertaintyArray(ndarray):
         """
         Return the mask of the records.
 
-        A record is masked when all the fields are masked.
+        A record is uncertain when all the fields are uncertain.
 
         """
         _mask = self._mask.view(ndarray)
@@ -3198,7 +3192,7 @@ class UncertaintyArray(ndarray):
         """
         Return the mask of the records.
 
-        A record is masked when all the fields are masked.
+        A record is uncertain when all the fields are uncertain.
 
         """
         raise NotImplementedError("Coming soon: setting the mask per records!")
@@ -3209,7 +3203,7 @@ class UncertaintyArray(ndarray):
         """
         Force the mask to hard.
 
-        Whether the mask of a masked array is hard or soft is determined by
+        Whether the mask of a uncertain array is hard or soft is determined by
         its `hardmask` property. `harden_mask` sets `hardmask` to True.
 
         See Also
@@ -3224,7 +3218,7 @@ class UncertaintyArray(ndarray):
         """
         Force the mask to soft.
 
-        Whether the mask of a masked array is hard or soft is determined by
+        Whether the mask of a uncertain array is hard or soft is determined by
         its `hardmask` property. `soften_mask` sets `hardmask` to False.
 
         See Also
@@ -3242,7 +3236,7 @@ class UncertaintyArray(ndarray):
         """
         Copy the mask and set the sharedmask flag to False.
 
-        Whether the mask is shared between masked arrays can be seen from
+        Whether the mask is shared between uncertain arrays can be seen from
         the `sharedmask` property. `unshare_mask` ensures the mask is not shared.
         A copy of the mask is only made if it was shared.
 
@@ -3314,7 +3308,7 @@ class UncertaintyArray(ndarray):
 
     def get_fill_value(self):
         """
-        Return the filling value of the masked array.
+        Return the filling value of the uncertain array.
 
         Returns
         -------
@@ -3349,7 +3343,7 @@ class UncertaintyArray(ndarray):
 
     def set_fill_value(self, value=None):
         """
-        Set the filling value of the masked array.
+        Set the filling value of the uncertain array.
 
         Parameters
         ----------
@@ -3391,8 +3385,8 @@ class UncertaintyArray(ndarray):
 
     def filled(self, fill_value=None):
         """
-        Return a copy of self, with masked values filled with a given value.
-        **However**, if there are no masked values to fill, self will be
+        Return a copy of self, with uncertain values filled with a given value.
+        **However**, if there are no uncertain values to fill, self will be
         returned instead as an ndarray.
 
         Parameters
@@ -3411,7 +3405,7 @@ class UncertaintyArray(ndarray):
 
         Notes
         -----
-        The result is **not** a MaskedArray!
+        The result is **not** a UncertainArray!
 
         Examples
         --------
@@ -3421,7 +3415,7 @@ class UncertaintyArray(ndarray):
         >>> type(x.filled())
         <type 'numpy.ndarray'>
 
-        Subclassing is preserved. This means that if the data part of the masked
+        Subclassing is preserved. This means that if the data part of the uncertain
         array is a matrix, `filled` returns a matrix:
 
         >>> x = np.ma.array(np.matrix([[1, 2], [3, 4]]), mask=[[0, 1], [1, 0]])
@@ -3439,7 +3433,7 @@ class UncertaintyArray(ndarray):
         else:
             fill_value = _check_fill_value(fill_value, self.dtype)
 
-        if self is masked_singleton:
+        if self is uncertain_singleton:
             return np.asanyarray(fill_value)
 
         if m.dtype.names:
@@ -3467,16 +3461,16 @@ class UncertaintyArray(ndarray):
 
     def compressed(self):
         """
-        Return all the non-masked data as a 1-D array.
+        Return all the non-uncertain data as a 1-D array.
 
         Returns
         -------
         data : ndarray
-            A new `ndarray` holding the non-masked data is returned.
+            A new `ndarray` holding the non-uncertain data is returned.
 
         Notes
         -----
-        The result is **not** a MaskedArray!
+        The result is **not** a UncertainArray!
 
         Examples
         --------
@@ -3492,82 +3486,15 @@ class UncertaintyArray(ndarray):
             data = data.compress(np.logical_not(ndarray.ravel(self._mask)))
         return data
 
-    def compress(self, condition, axis=None, out=None):
-        """
-        Return `a` where condition is ``True``.
-
-        If condition is a `MaskedArray`, missing values are considered
-        as ``False``.
-
-        Parameters
-        ----------
-        condition : var
-            Boolean 1-d array selecting which entries to return. If len(condition)
-            is less than the size of a along the axis, then output is truncated
-            to length of condition array.
-        axis : {None, int}, optional
-            Axis along which the operation must be performed.
-        out : {None, ndarray}, optional
-            Alternative output array in which to place the result. It must have
-            the same shape as the expected output but the type will be cast if
-            necessary.
-
-        Returns
-        -------
-        result : MaskedArray
-            A :class:`MaskedArray` object.
-
-        Notes
-        -----
-        Please note the difference with :meth:`compressed` !
-        The output of :meth:`compress` has a mask, the output of
-        :meth:`compressed` does not.
-
-        Examples
-        --------
-        >>> x = np.ma.array([[1,2,3],[4,5,6],[7,8,9]], mask=[0] + [1,0]*4)
-        >>> print(x)
-        [[1 -- 3]
-         [-- 5 --]
-         [7 -- 9]]
-        >>> x.compress([1, 0, 1])
-        masked_array(data = [1 3],
-              mask = [False False],
-              fill_value=999999)
-
-        >>> x.compress([1, 0, 1], axis=1)
-        masked_array(data =
-         [[1 3]
-         [-- --]
-         [7 9]],
-              mask =
-         [[False False]
-         [ True  True]
-         [False False]],
-              fill_value=999999)
-
-        """
-        # Get the basic components
-        (_data, _mask) = (self._data, self._mask)
-
-        # Force the condition to a regular ndarray and forget the missing
-        # values.
-        condition = np.array(condition, copy=False, subok=False)
-
-        _new = _data.compress(condition, axis=axis, out=out).view(type(self))
-        _new._update_from(self)
-        if _mask is not nomask:
-            _new._mask = _mask.compress(condition, axis=axis)
-        return _new
 
     def __str__(self):
         """
         String representation.
 
         """
-        if masked_print_option.enabled():
-            f = masked_print_option
-            if self is masked:
+        if uncertain_print_option.enabled():
+            f = uncertain_print_option
+            if self is uncertain:
                 return str(f)
             m = self._mask
             if m is nomask:
@@ -3648,8 +3575,8 @@ class UncertaintyArray(ndarray):
         Check whether other equals self elementwise.
 
         """
-        if self is masked:
-            return masked
+        if self is uncertain:
+            return uncertain
         omask = getattr(other, '_mask', nomask)
         if omask is nomask:
             check = self.filled(0).__eq__(other)
@@ -3684,8 +3611,8 @@ class UncertaintyArray(ndarray):
         Check whether other doesn't equal self elementwise
 
         """
-        if self is masked:
-            return masked
+        if self is uncertain:
+            return uncertain
         omask = getattr(other, '_mask', nomask)
         if omask is nomask:
             check = self.filled(0).__ne__(other)
@@ -3717,7 +3644,7 @@ class UncertaintyArray(ndarray):
 
     def __add__(self, other):
         """
-        Add self to other, and return a new masked array.
+        Add self to other, and return a new uncertain array.
 
         """
         if self._delegate_binop(other):
@@ -3726,7 +3653,7 @@ class UncertaintyArray(ndarray):
 
     def __radd__(self, other):
         """
-        Add other to self, and return a new masked array.
+        Add other to self, and return a new uncertain array.
 
         """
         # In analogy with __rsub__ and __rdiv__, use original order:
@@ -3735,7 +3662,7 @@ class UncertaintyArray(ndarray):
 
     def __sub__(self, other):
         """
-        Subtract other from self, and return a new masked array.
+        Subtract other from self, and return a new uncertain array.
 
         """
         if self._delegate_binop(other):
@@ -3744,20 +3671,20 @@ class UncertaintyArray(ndarray):
 
     def __rsub__(self, other):
         """
-        Subtract self from other, and return a new masked array.
+        Subtract self from other, and return a new uncertain array.
 
         """
         return subtract(other, self)
 
     def __mul__(self, other):
-        "Multiply self by other, and return a new masked array."
+        "Multiply self by other, and return a new uncertain array."
         if self._delegate_binop(other):
             return NotImplemented
         return multiply(self, other)
 
     def __rmul__(self, other):
         """
-        Multiply other by self, and return a new masked array.
+        Multiply other by self, and return a new uncertain array.
 
         """
         # In analogy with __rsub__ and __rdiv__, use original order:
@@ -3766,7 +3693,7 @@ class UncertaintyArray(ndarray):
 
     def __div__(self, other):
         """
-        Divide other into self, and return a new masked array.
+        Divide other into self, and return a new uncertain array.
 
         """
         if self._delegate_binop(other):
@@ -3775,7 +3702,7 @@ class UncertaintyArray(ndarray):
 
     def __truediv__(self, other):
         """
-        Divide other into self, and return a new masked array.
+        Divide other into self, and return a new uncertain array.
 
         """
         if self._delegate_binop(other):
@@ -3784,14 +3711,14 @@ class UncertaintyArray(ndarray):
 
     def __rtruediv__(self, other):
         """
-        Divide self into other, and return a new masked array.
+        Divide self into other, and return a new uncertain array.
 
         """
         return true_divide(other, self)
 
     def __floordiv__(self, other):
         """
-        Divide other into self, and return a new masked array.
+        Divide other into self, and return a new uncertain array.
 
         """
         if self._delegate_binop(other):
@@ -3800,7 +3727,7 @@ class UncertaintyArray(ndarray):
 
     def __rfloordiv__(self, other):
         """
-        Divide self into other, and return a new masked array.
+        Divide self into other, and return a new uncertain array.
 
         """
         return floor_divide(other, self)
@@ -3954,7 +3881,7 @@ class UncertaintyArray(ndarray):
             raise TypeError("Only length-1 arrays can be converted "
                             "to Python scalars")
         elif self._mask:
-            warnings.warn("Warning: converting a masked element to nan.", stacklevel=2)
+            warnings.warn("Warning: converting a uncertain element to nan.", stacklevel=2)
             return np.nan
         return float(self.item())
 
@@ -3967,14 +3894,14 @@ class UncertaintyArray(ndarray):
             raise TypeError("Only length-1 arrays can be converted "
                             "to Python scalars")
         elif self._mask:
-            raise MaskError('Cannot convert masked element to a Python int.')
+            raise MaskError('Cannot convert uncertain element to a Python int.')
         return int(self.item())
 
     def get_imag(self):
         """
-        Return the imaginary part of the masked array.
+        Return the imaginary part of the uncertain array.
 
-        The returned array is a view on the imaginary part of the `MaskedArray`
+        The returned array is a view on the imaginary part of the `UncertainArray`
         whose `get_imag` method is called.
 
         Parameters
@@ -3983,8 +3910,8 @@ class UncertaintyArray(ndarray):
 
         Returns
         -------
-        result : MaskedArray
-            The imaginary part of the masked array.
+        result : UncertainArray
+            The imaginary part of the uncertain array.
 
         See Also
         --------
@@ -3994,7 +3921,7 @@ class UncertaintyArray(ndarray):
         --------
         >>> x = np.ma.array([1+1.j, -2j, 3.45+1.6j], mask=[False, True, False])
         >>> x.get_imag()
-        masked_array(data = [1.0 -- 1.6],
+        uncertain_array(data = [1.0 -- 1.6],
                      mask = [False  True False],
                fill_value = 1e+20)
 
@@ -4007,9 +3934,9 @@ class UncertaintyArray(ndarray):
 
     def get_real(self):
         """
-        Return the real part of the masked array.
+        Return the real part of the uncertain array.
 
-        The returned array is a view on the real part of the `MaskedArray`
+        The returned array is a view on the real part of the `UncertainArray`
         whose `get_real` method is called.
 
         Parameters
@@ -4018,8 +3945,8 @@ class UncertaintyArray(ndarray):
 
         Returns
         -------
-        result : MaskedArray
-            The real part of the masked array.
+        result : UncertainArray
+            The real part of the uncertain array.
 
         See Also
         --------
@@ -4029,7 +3956,7 @@ class UncertaintyArray(ndarray):
         --------
         >>> x = np.ma.array([1+1.j, -2j, 3.45+1.6j], mask=[False, True, False])
         >>> x.get_real()
-        masked_array(data = [1.0 -- 3.45],
+        uncertain_array(data = [1.0 -- 3.45],
                      mask = [False  True False],
                fill_value = 1e+20)
 
@@ -4041,7 +3968,7 @@ class UncertaintyArray(ndarray):
 
     def count(self, axis=None, keepdims=np._NoValue):
         """
-        Count the non-masked elements of the array along the given axis.
+        Count the non-uncertain elements of the array along the given axis.
 
         Parameters
         ----------
@@ -4069,15 +3996,15 @@ class UncertaintyArray(ndarray):
 
         See Also
         --------
-        count_masked : Count masked elements in array or along a given axis.
+        count_uncertain : Count uncertain elements in array or along a given axis.
 
         Examples
         --------
         >>> import numpy.ma as ma
         >>> a = ma.arange(6).reshape((2, 3))
-        >>> a[1, :] = ma.masked
+        >>> a[1, :] = ma.uncertain
         >>> a
-        masked_array(data =
+        uncertain_array(data =
          [[0 1 2]
          [-- -- --]],
                      mask =
@@ -4138,8 +4065,8 @@ class UncertaintyArray(ndarray):
             # make sure to return a 0-d array if axis is supplied
             return np.full(out_dims, items, dtype=np.intp)
 
-        # take care of the masked singleton
-        if self is masked:
+        # take care of the uncertain singleton
+        if self is uncertain:
             return 0
 
         return (~m).sum(axis=axis, dtype=np.intp, **kwargs)
@@ -4168,7 +4095,7 @@ class UncertaintyArray(ndarray):
 
         Returns
         -------
-        MaskedArray
+        UncertainArray
             Output view is of shape ``(self.size,)`` (or
             ``(np.ma.product(self.shape),)``).
 
@@ -4198,7 +4125,7 @@ class UncertaintyArray(ndarray):
         """
         Give a new shape to the array without changing its data.
 
-        Returns a masked array containing the same data, but with a new shape.
+        Returns a uncertain array containing the same data, but with a new shape.
         The result is a view on the original array; if this is not possible, a
         ValueError is raised.
 
@@ -4219,7 +4146,7 @@ class UncertaintyArray(ndarray):
 
         See Also
         --------
-        reshape : Equivalent function in the masked array module.
+        reshape : Equivalent function in the uncertain array module.
         numpy.ndarray.reshape : Equivalent method on ndarray object.
         numpy.reshape : Equivalent function in the NumPy module.
 
@@ -4255,7 +4182,7 @@ class UncertaintyArray(ndarray):
         .. warning::
 
             This method does nothing, except raise a ValueError exception. A
-            masked array does not own its data and therefore cannot safely be
+            uncertain array does not own its data and therefore cannot safely be
             resized in place. Use the `numpy.ma.resize` function instead.
 
         This method is difficult to implement safely and may be deprecated in
@@ -4263,7 +4190,7 @@ class UncertaintyArray(ndarray):
 
         """
         # Note : the 'order' keyword looks broken, let's just drop it
-        errmsg = "A masked array does not own its data "\
+        errmsg = "A uncertain array does not own its data "\
                  "and therefore cannot be resized.\n" \
                  "Use the numpy.ma.resize function instead."
         raise ValueError(errmsg)
@@ -4274,8 +4201,8 @@ class UncertaintyArray(ndarray):
 
         Sets self._data.flat[n] = values[n] for each n in indices.
         If `values` is shorter than `indices` then it will repeat.
-        If `values` has some masked values, the initial mask is updated
-        in consequence, else the corresponding values are unmasked.
+        If `values` has some uncertain values, the initial mask is updated
+        in consequence, else the corresponding values are ununcertain.
 
         Parameters
         ----------
@@ -4313,7 +4240,7 @@ class UncertaintyArray(ndarray):
          [7 -- 30]]
 
         """
-        # Hard mask: Get rid of the values/indices that fall on masked data
+        # Hard mask: Get rid of the values/indices that fall on uncertain data
         if self._hardmask and self._mask is not nomask:
             mask = self._mask[indices]
             indices = narray(indices, copy=False)
@@ -4324,7 +4251,7 @@ class UncertaintyArray(ndarray):
 
         self._data.put(indices, values, mode=mode)
 
-        # short circut if neither self nor values are masked
+        # short circut if neither self nor values are uncertain
         if self._mask is nomask and getmask(values) is nomask:
             return
 
@@ -4378,7 +4305,7 @@ class UncertaintyArray(ndarray):
         >>> x.iscontiguous()
         True
 
-        `iscontiguous` returns one of the flags of the masked array:
+        `iscontiguous` returns one of the flags of the uncertain array:
 
         >>> x.flags
           C_CONTIGUOUS : True
@@ -4395,9 +4322,9 @@ class UncertaintyArray(ndarray):
         """
         Returns True if all elements evaluate to True.
 
-        The output array is masked where all the values along the given axis
-        are masked: if the output would have been a scalar and that all the
-        values are masked, then the output is `masked`.
+        The output array is uncertain where all the values along the given axis
+        are uncertain: if the output would have been a scalar and that all the
+        values are uncertain, then the output is `uncertain`.
 
         Refer to `numpy.all` for full documentation.
 
@@ -4411,7 +4338,7 @@ class UncertaintyArray(ndarray):
         >>> np.ma.array([1,2,3]).all()
         True
         >>> a = np.ma.array([1,2,3], mask=True)
-        >>> (a.all() is np.ma.masked)
+        >>> (a.all() is np.ma.uncertain)
         True
 
         """
@@ -4423,10 +4350,10 @@ class UncertaintyArray(ndarray):
             if d.ndim:
                 d.__setmask__(mask)
             elif mask:
-                return masked
+                return uncertain
             return d
         self.filled(True).all(axis=axis, out=out, **kwargs)
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             if out.ndim or mask:
                 out.__setmask__(mask)
         return out
@@ -4453,17 +4380,17 @@ class UncertaintyArray(ndarray):
             if d.ndim:
                 d.__setmask__(mask)
             elif mask:
-                d = masked
+                d = uncertain
             return d
         self.filled(False).any(axis=axis, out=out, **kwargs)
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             if out.ndim or mask:
                 out.__setmask__(mask)
         return out
 
     def nonzero(self):
         """
-        Return the indices of unmasked elements that are not zero.
+        Return the indices of ununcertain elements that are not zero.
 
         Returns a tuple of arrays, one for each dimension, containing the
         indices of the non-zero elements in that dimension. The corresponding
@@ -4505,7 +4432,7 @@ class UncertaintyArray(ndarray):
         >>> import numpy.ma as ma
         >>> x = ma.array(np.eye(3))
         >>> x
-        masked_array(data =
+        uncertain_array(data =
          [[ 1.  0.  0.]
          [ 0.  1.  0.]
          [ 0.  0.  1.]],
@@ -4517,9 +4444,9 @@ class UncertaintyArray(ndarray):
 
         Masked elements are ignored.
 
-        >>> x[1, 1] = ma.masked
+        >>> x[1, 1] = ma.uncertain
         >>> x
-        masked_array(data =
+        uncertain_array(data =
          [[1.0 0.0 0.0]
          [0.0 -- 0.0]
          [0.0 0.0 1.0]],
@@ -4544,7 +4471,7 @@ class UncertaintyArray(ndarray):
 
         >>> a = ma.array([[1,2,3],[4,5,6],[7,8,9]])
         >>> a > 3
-        masked_array(data =
+        uncertain_array(data =
          [[False False False]
          [ True  True  True]
          [ True  True  True]],
@@ -4569,7 +4496,7 @@ class UncertaintyArray(ndarray):
         #!!!: implement out + test!
         m = self._mask
         if m is nomask:
-            result = super(MaskedArray, self).trace(offset=offset, axis1=axis1,
+            result = super(UncertainArray, self).trace(offset=offset, axis1=axis1,
                                                     axis2=axis2, out=out)
             return result.astype(dtype)
         else:
@@ -4591,9 +4518,9 @@ class UncertaintyArray(ndarray):
 
         Parameters
         ----------
-        b : masked_array_like
+        b : uncertain_array_like
             Inputs array.
-        out : masked_array, optional
+        out : uncertain_array, optional
             Output argument. This must have the exact kind that would be
             returned if it was not used. In particular, it must have the
             right type, must be C-contiguous, and its dtype must be the
@@ -4602,10 +4529,10 @@ class UncertaintyArray(ndarray):
             met, an exception is raised, instead of attempting to be
             flexible.
         strict : bool, optional
-            Whether masked data are propagated (True) or set to 0 (False)
+            Whether uncertain data are propagated (True) or set to 0 (False)
             for the computation. Default is False.  Propagating the mask
-            means that if a masked value appears in a row or column, the
-            whole row or column is considered masked.
+            means that if a uncertain value appears in a row or column, the
+            whole row or column is considered uncertain.
 
             .. versionadded:: 1.10.2
 
@@ -4658,11 +4585,11 @@ class UncertaintyArray(ndarray):
                 result = result.view(type(self))
                 result.__setmask__(newmask)
             elif newmask:
-                result = masked
+                result = uncertain
             return result
         # Explicit output
         result = self.filled(0).sum(axis, dtype=dtype, out=out, **kwargs)
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             outmask = getattr(out, '_mask', nomask)
             if (outmask is nomask):
                 outmask = out._mask = make_mask_none(out.shape)
@@ -4674,14 +4601,14 @@ class UncertaintyArray(ndarray):
         Return the cumulative sum of the array elements over the given axis.
 
         Masked values are set to 0 internally during the computation.
-        However, their position is saved, and the result will be masked at
+        However, their position is saved, and the result will be uncertain at
         the same locations.
 
         Refer to `numpy.cumsum` for full documentation.
 
         Notes
         -----
-        The mask is lost if `out` is not a valid :class:`MaskedArray` !
+        The mask is lost if `out` is not a valid :class:`UncertainArray` !
 
         Arithmetic is modular when using integer types, and no error is
         raised on overflow.
@@ -4700,7 +4627,7 @@ class UncertaintyArray(ndarray):
         """
         result = self.filled(0).cumsum(axis=axis, dtype=dtype, out=out)
         if out is not None:
-            if isinstance(out, MaskedArray):
+            if isinstance(out, UncertainArray):
                 out.__setmask__(self.mask)
             return out
         result = result.view(type(self))
@@ -4737,11 +4664,11 @@ class UncertaintyArray(ndarray):
                 result = result.view(type(self))
                 result.__setmask__(newmask)
             elif newmask:
-                result = masked
+                result = uncertain
             return result
         # Explicit output
         result = self.filled(1).prod(axis, dtype=dtype, out=out, **kwargs)
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             outmask = getattr(out, '_mask', nomask)
             if (outmask is nomask):
                 outmask = out._mask = make_mask_none(out.shape)
@@ -4754,14 +4681,14 @@ class UncertaintyArray(ndarray):
         Return the cumulative product of the array elements over the given axis.
 
         Masked values are set to 1 internally during the computation.
-        However, their position is saved, and the result will be masked at
+        However, their position is saved, and the result will be uncertain at
         the same locations.
 
         Refer to `numpy.cumprod` for full documentation.
 
         Notes
         -----
-        The mask is lost if `out` is not a valid MaskedArray !
+        The mask is lost if `out` is not a valid UncertainArray !
 
         Arithmetic is modular when using integer types, and no error is
         raised on overflow.
@@ -4773,7 +4700,7 @@ class UncertaintyArray(ndarray):
         """
         result = self.filled(1).cumprod(axis=axis, dtype=dtype, out=out)
         if out is not None:
-            if isinstance(out, MaskedArray):
+            if isinstance(out, UncertainArray):
                 out.__setmask__(self._mask)
             return out
         result = result.view(type(self))
@@ -4785,7 +4712,7 @@ class UncertaintyArray(ndarray):
         Returns the average of the array elements along given axis.
 
         Masked entries are ignored, and result elements which are not
-        finite will be masked.
+        finite will be uncertain.
 
         Refer to `numpy.mean` for full documentation.
 
@@ -4799,7 +4726,7 @@ class UncertaintyArray(ndarray):
         --------
         >>> a = np.ma.array([1,2,3], mask=[False, False, True])
         >>> a
-        masked_array(data = [1 2 --],
+        uncertain_array(data = [1 2 --],
                      mask = [False False  True],
                fill_value = 999999)
         >>> a.mean()
@@ -4809,18 +4736,18 @@ class UncertaintyArray(ndarray):
         kwargs = {} if keepdims is np._NoValue else {'keepdims': keepdims}
 
         if self._mask is nomask:
-            result = super(MaskedArray, self).mean(axis=axis,
+            result = super(UncertainArray, self).mean(axis=axis,
                                                    dtype=dtype, **kwargs)
         else:
             dsum = self.sum(axis=axis, dtype=dtype, **kwargs)
             cnt = self.count(axis=axis, **kwargs)
             if cnt.shape == () and (cnt == 0):
-                result = masked
+                result = uncertain
             else:
                 result = dsum * 1. / cnt
         if out is not None:
             out.flat = result
-            if isinstance(out, MaskedArray):
+            if isinstance(out, UncertainArray):
                 outmask = getattr(out, '_mask', nomask)
                 if (outmask is nomask):
                     outmask = out._mask = make_mask_none(out.shape)
@@ -4854,13 +4781,13 @@ class UncertaintyArray(ndarray):
         --------
         >>> a = np.ma.array([1,2,3])
         >>> a.anom()
-        masked_array(data = [-1.  0.  1.],
+        uncertain_array(data = [-1.  0.  1.],
                      mask = False,
                fill_value = 1e+20)
 
         """
         m = self.mean(axis, dtype)
-        if m is masked:
+        if m is uncertain:
             return m
 
         if not axis:
@@ -4874,7 +4801,7 @@ class UncertaintyArray(ndarray):
         Returns the variance of the array elements along given axis.
 
         Masked entries are ignored, and result elements which are not
-        finite will be masked.
+        finite will be uncertain.
 
         Refer to `numpy.var` for full documentation.
 
@@ -4889,7 +4816,7 @@ class UncertaintyArray(ndarray):
         if self._mask is nomask:
             return self._data.var(axis=axis, dtype=dtype, out=out,
                                   ddof=ddof, **kwargs)
-        # Some data are masked, yay!
+        # Some data are uncertain, yay!
         cnt = self.count(axis=axis, **kwargs) - ddof
         danom = self - self.mean(axis, dtype, keepdims=True)
         if iscomplexobj(self):
@@ -4902,10 +4829,10 @@ class UncertaintyArray(ndarray):
             dvar._mask = mask_or(self._mask.all(axis, **kwargs), (cnt <= 0))
             dvar._update_from(self)
         elif getattr(dvar, '_mask', False):
-            # Make sure that masked is returned when the scalar is masked.
-            dvar = masked
+            # Make sure that uncertain is returned when the scalar is uncertain.
+            dvar = uncertain
             if out is not None:
-                if isinstance(out, MaskedArray):
+                if isinstance(out, UncertainArray):
                     out.flat = 0
                     out.__setmask__(True)
                 elif out.dtype.kind in 'biu':
@@ -4920,7 +4847,7 @@ class UncertaintyArray(ndarray):
             # Set the data
             out.flat = dvar
             # Set the mask if needed
-            if isinstance(out, MaskedArray):
+            if isinstance(out, UncertainArray):
                 out.__setmask__(dvar.mask)
             return out
         return dvar
@@ -4943,7 +4870,7 @@ class UncertaintyArray(ndarray):
         kwargs = {} if keepdims is np._NoValue else {'keepdims': keepdims}
 
         dvar = self.var(axis, dtype, out, ddof, **kwargs)
-        if dvar is not masked:
+        if dvar is not uncertain:
             if out is not None:
                 np.power(out, 0.5, out=out, casting='unsafe')
                 return out
@@ -4966,12 +4893,12 @@ class UncertaintyArray(ndarray):
             result._mask = self._mask
             result._update_from(self)
         elif self._mask:
-            # Return masked when the scalar is masked
-            result = masked
+            # Return uncertain when the scalar is uncertain
+            result = uncertain
         # No explicit output: we're done
         if out is None:
             return result
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             out.__setmask__(self._mask)
         return out
 
@@ -5016,7 +4943,7 @@ class UncertaintyArray(ndarray):
         --------
         >>> a = np.ma.array([3,2,1], mask=[False, False, True])
         >>> a
-        masked_array(data = [3 2 --],
+        uncertain_array(data = [3 2 --],
                      mask = [False False  True],
                fill_value = 999999)
         >>> a.argsort()
@@ -5038,7 +4965,7 @@ class UncertaintyArray(ndarray):
             If None, the index is into the flattened array, otherwise along
             the specified axis
         fill_value : {var}, optional
-            Value used to fill in the masked values.  If None, the output of
+            Value used to fill in the uncertain values.  If None, the output of
             minimum_fill_value(self._data) is used instead.
         out : {None, array}, optional
             Array into which the result can be placed. Its type is preserved
@@ -5080,7 +5007,7 @@ class UncertaintyArray(ndarray):
             If None, the index is into the flattened array, otherwise along
             the specified axis
         fill_value : {var}, optional
-            Value used to fill in the masked values.  If None, the output of
+            Value used to fill in the uncertain values.  If None, the output of
             maximum_fill_value(self._data) is used instead.
         out : {None, array}, optional
             Array into which the result can be placed. Its type is preserved
@@ -5127,12 +5054,12 @@ class UncertaintyArray(ndarray):
         endwith : {True, False}, optional
             Whether missing values (if any) should be forced in the upper indices
             (at the end of the array) (True) or lower indices (at the beginning).
-            When the array contains unmasked values of the largest (or smallest if
+            When the array contains ununcertain values of the largest (or smallest if
             False) representable value of the datatype the ordering of these values
-            and the masked values is undefined.  To enforce the masked values are
+            and the uncertain values is undefined.  To enforce the uncertain values are
             at the end (beginning) in this case one must sort the mask.
         fill_value : {var}, optional
-            Value used internally for the masked values.
+            Value used internally for the uncertain values.
             If ``fill_value`` is not None, it supersedes ``endwith``.
 
         Returns
@@ -5175,7 +5102,7 @@ class UncertaintyArray(ndarray):
         if self._mask is nomask:
             ndarray.sort(self, axis=axis, kind=kind, order=order)
         else:
-            if self is masked:
+            if self is uncertain:
                 return self
             if fill_value is None:
                 if endwith:
@@ -5217,7 +5144,7 @@ class UncertaintyArray(ndarray):
             Alternative output array in which to place the result.  Must be of
             the same shape and buffer length as the expected output.
         fill_value : {var}, optional
-            Value used to fill in the masked values.
+            Value used to fill in the uncertain values.
             If None, use the output of `minimum_fill_value`.
 
         Returns
@@ -5249,11 +5176,11 @@ class UncertaintyArray(ndarray):
                 if newmask.ndim:
                     np.copyto(result, result.fill_value, where=newmask)
             elif newmask:
-                result = masked
+                result = uncertain
             return result
         # Explicit output
         result = self.filled(fill_value).min(axis=axis, out=out, **kwargs)
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             outmask = getattr(out, '_mask', nomask)
             if (outmask is nomask):
                 outmask = out._mask = make_mask_none(out.shape)
@@ -5266,7 +5193,7 @@ class UncertaintyArray(ndarray):
             np.copyto(out, np.nan, where=newmask)
         return out
 
-    # unique to masked arrays
+    # unique to uncertain arrays
     def mini(self, axis=None):
         """
         Return the array minimum along the specified axis.
@@ -5279,9 +5206,9 @@ class UncertaintyArray(ndarray):
 
         Returns
         -------
-        min : scalar or MaskedArray
+        min : scalar or UncertainArray
             If `axis` is None, the result is a scalar. Otherwise, if `axis` is
-            given and the array is at least 2-D, the result is a masked array with
+            given and the array is at least 2-D, the result is a uncertain array with
             dimension one smaller than the array on which `mini` is called.
 
         Examples
@@ -5294,7 +5221,7 @@ class UncertaintyArray(ndarray):
         >>> x.mini()
         0
         >>> x.mini(axis=0)
-        masked_array(data = [0 3],
+        uncertain_array(data = [0 3],
                      mask = [False False],
                fill_value = 999999)
         >>> print(x.mini(axis=1))
@@ -5319,7 +5246,7 @@ class UncertaintyArray(ndarray):
             Alternative output array in which to place the result.  Must
             be of the same shape and buffer length as the expected output.
         fill_value : {var}, optional
-            Value used to fill in the masked values.
+            Value used to fill in the uncertain values.
             If None, use the output of maximum_fill_value().
 
         Returns
@@ -5351,11 +5278,11 @@ class UncertaintyArray(ndarray):
                 if newmask.ndim:
                     np.copyto(result, result.fill_value, where=newmask)
             elif newmask:
-                result = masked
+                result = uncertain
             return result
         # Explicit output
         result = self.filled(fill_value).max(axis=axis, out=out, **kwargs)
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             outmask = getattr(out, '_mask', nomask)
             if (outmask is nomask):
                 outmask = out._mask = make_mask_none(out.shape)
@@ -5384,7 +5311,7 @@ class UncertaintyArray(ndarray):
             have the same shape and buffer length as the expected output
             but the type will be cast if necessary.
         fill_value : {var}, optional
-            Value used to fill in the masked values.
+            Value used to fill in the uncertain values.
 
         Returns
         -------
@@ -5407,7 +5334,7 @@ class UncertaintyArray(ndarray):
         """
         (_data, _mask) = (self._data, self._mask)
         cls = type(self)
-        # Make sure the indices are not masked
+        # Make sure the indices are not uncertain
         maskindices = getattr(indices, '_mask', nomask)
         if maskindices is not nomask:
             indices = indices.filled(0)
@@ -5418,7 +5345,7 @@ class UncertaintyArray(ndarray):
         else:
             np.take(_data, indices, axis=axis, mode=mode, out=out)
         # Get the mask
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             if _mask is nomask:
                 outmask = maskindices
             else:
@@ -5440,7 +5367,7 @@ class UncertaintyArray(ndarray):
 
     def tolist(self, fill_value=None):
         """
-        Return the data portion of the masked array as a hierarchical Python list.
+        Return the data portion of the uncertain array as a hierarchical Python list.
 
         Data items are converted to the nearest compatible Python type.
         Masked values are converted to `fill_value`. If `fill_value` is None,
@@ -5454,7 +5381,7 @@ class UncertaintyArray(ndarray):
         Returns
         -------
         result : list
-            The Python list representation of the masked array.
+            The Python list representation of the uncertain array.
 
         Examples
         --------
@@ -5508,8 +5435,8 @@ class UncertaintyArray(ndarray):
         Parameters
         ----------
         fill_value : scalar, optional
-            Value used to fill in the masked values. Deafult is None, in which
-            case `MaskedArray.fill_value` is used.
+            Value used to fill in the uncertain values. Deafult is None, in which
+            case `UncertainArray.fill_value` is used.
         order : {'C','F','A'}, optional
             Order of the data item in the copy. Default is 'C'.
 
@@ -5539,7 +5466,7 @@ class UncertaintyArray(ndarray):
 
     def tofile(self, fid, sep="", format="%s"):
         """
-        Save a masked array to a file in binary format.
+        Save a uncertain array to a file in binary format.
 
         .. warning::
           This function is not implemented yet.
@@ -5550,11 +5477,11 @@ class UncertaintyArray(ndarray):
             When `tofile` is called.
 
         """
-        raise NotImplementedError("MaskedArray.tofile() not implemented yet.")
+        raise NotImplementedError("UncertainArray.tofile() not implemented yet.")
 
     def toflex(self):
         """
-        Transforms a masked array into a flexible-type array.
+        Transforms a uncertain array into a flexible-type array.
 
         The flexible type array that is returned will have two fields:
 
@@ -5574,7 +5501,7 @@ class UncertaintyArray(ndarray):
 
         Notes
         -----
-        A side-effect of transforming a masked array into a flexible `ndarray` is
+        A side-effect of transforming a uncertain array into a flexible `ndarray` is
         that meta information (``fill_value``, ...) will be lost.
 
         Examples
@@ -5608,7 +5535,7 @@ class UncertaintyArray(ndarray):
 
     # Pickling
     def __getstate__(self):
-        """Return the internal state of the masked array, for pickling
+        """Return the internal state of the uncertain array, for pickling
         purposes.
 
         """
@@ -5626,7 +5553,7 @@ class UncertaintyArray(ndarray):
         return state
 
     def __setstate__(self, state):
-        """Restore the internal state of the masked array, for
+        """Restore the internal state of the uncertain array, for
         pickling purposes.  ``state`` is typically the output of the
         ``__getstate__`` output, and is a 5-tuple:
 
@@ -5638,12 +5565,12 @@ class UncertaintyArray(ndarray):
 
         """
         (_, shp, typ, isf, raw, msk, flv) = state
-        super(MaskedArray, self).__setstate__((shp, typ, isf, raw))
+        super(UncertainArray, self).__setstate__((shp, typ, isf, raw))
         self._mask.__setstate__((shp, make_mask_descr(typ), isf, msk))
         self.fill_value = flv
 
     def __reduce__(self):
-        """Return a 3-tuple for pickling a MaskedArray.
+        """Return a 3-tuple for pickling a UncertainArray.
 
         """
         return (_mareconstruct,
@@ -5652,7 +5579,7 @@ class UncertaintyArray(ndarray):
 
     def __deepcopy__(self, memo=None):
         from copy import deepcopy
-        copied = MaskedArray.__new__(type(self), self, copy=True)
+        copied = UncertainArray.__new__(type(self), self, copy=True)
         if memo is None:
             memo = {}
         memo[id(self)] = copied
@@ -5662,7 +5589,7 @@ class UncertaintyArray(ndarray):
 
 
 def _mareconstruct(subtype, baseclass, baseshape, basetype,):
-    """Internal function that builds a new MaskedArray from the
+    """Internal function that builds a new UncertainArray from the
     information stored in a pickle.
 
     """
@@ -5671,9 +5598,9 @@ def _mareconstruct(subtype, baseclass, baseshape, basetype,):
     return subtype.__new__(subtype, _data, mask=_mask, dtype=basetype,)
 
 
-class mvoid(MaskedArray):
+class mvoid(UncertainArray):
     """
-    Fake a 'void' object to use for masked array with structured dtypes.
+    Fake a 'void' object to use for uncertain array with structured dtypes.
     """
 
     def __new__(self, data, mask=nomask, dtype=None, fill_value=None,
@@ -5710,18 +5637,18 @@ class mvoid(MaskedArray):
         m = self._mask
         if isinstance(m[indx], ndarray):
             # Can happen when indx is a multi-dimensional field:
-            # A = ma.masked_array(data=[([0,1],)], mask=[([True,
+            # A = ma.uncertain_array(data=[([0,1],)], mask=[([True,
             #                     False],)], dtype=[("A", ">i2", (2,))])
             # x = A[0]; y = x["A"]; then y.mask["A"].size==2
-            # and we can not say masked/unmasked.
+            # and we can not say uncertain/ununcertain.
             # The result is no longer mvoid!
             # See also issue #6724.
-            return masked_array(
+            return uncertain_array(
                 data=self._data[indx], mask=m[indx],
                 fill_value=self._fill_value[indx],
                 hard_mask=self._hardmask)
         if m is not nomask and m[indx]:
-            return masked
+            return uncertain
         return self._data[indx]
 
     def __setitem__(self, indx, value):
@@ -5735,7 +5662,7 @@ class mvoid(MaskedArray):
         m = self._mask
         if m is nomask:
             return self._data.__str__()
-        printopt = masked_print_option
+        printopt = uncertain_print_option
         rdtype = _recursive_make_descr(self._data.dtype, "O")
 
         # temporary hack to fix gh-7493. A more permanent fix
@@ -5759,7 +5686,7 @@ class mvoid(MaskedArray):
         else:
             for (d, m) in zip(_data, _mask):
                 if m:
-                    yield masked
+                    yield uncertain
                 else:
                     yield d
 
@@ -5768,7 +5695,7 @@ class mvoid(MaskedArray):
 
     def filled(self, fill_value=None):
         """
-        Return a copy with masked fields filled with a given value.
+        Return a copy with uncertain fields filled with a given value.
 
         Parameters
         ----------
@@ -5783,7 +5710,7 @@ class mvoid(MaskedArray):
 
         See Also
         --------
-        MaskedArray.filled
+        UncertainArray.filled
 
         """
         return asarray(self).filled(fill_value)[()]
@@ -5817,11 +5744,11 @@ class mvoid(MaskedArray):
 ##############################################################################
 
 
-def isMaskedArray(x):
+def isUncertainArray(x):
     """
-    Test whether input is an instance of MaskedArray.
+    Test whether input is an instance of UncertainArray.
 
-    This function returns True if `x` is an instance of MaskedArray
+    This function returns True if `x` is an instance of UncertainArray
     and returns False otherwise.  Any object is accepted as input.
 
     Parameters
@@ -5832,12 +5759,12 @@ def isMaskedArray(x):
     Returns
     -------
     result : bool
-        True if `x` is a MaskedArray.
+        True if `x` is a UncertainArray.
 
     See Also
     --------
-    isMA : Alias to isMaskedArray.
-    isarray : Alias to isMaskedArray.
+    isMA : Alias to isUncertainArray.
+    isarray : Alias to isUncertainArray.
 
     Examples
     --------
@@ -5847,9 +5774,9 @@ def isMaskedArray(x):
     array([[ 1.,  0.,  0.],
            [ 0.,  1.,  0.],
            [ 0.,  0.,  1.]])
-    >>> m = ma.masked_values(a, 0)
+    >>> m = ma.uncertain_values(a, 0)
     >>> m
-    masked_array(data =
+    uncertain_array(data =
      [[1.0 -- --]
      [-- 1.0 --]
      [-- -- 1.0]],
@@ -5858,23 +5785,23 @@ def isMaskedArray(x):
      [ True False  True]
      [ True  True False]],
           fill_value=0.0)
-    >>> ma.isMaskedArray(a)
+    >>> ma.isUncertainArray(a)
     False
-    >>> ma.isMaskedArray(m)
+    >>> ma.isUncertainArray(m)
     True
-    >>> ma.isMaskedArray([0, 1, 2])
+    >>> ma.isUncertainArray([0, 1, 2])
     False
 
     """
-    return isinstance(x, MaskedArray)
+    return isinstance(x, UncertainArray)
 
 
-isarray = isMaskedArray
-isMA = isMaskedArray  # backward compatibility
+isarray = isUncertainArray
+isUA = isUncertainArray  # backward compatibility
 
 
-class MaskedConstant(MaskedArray):
-    # We define the masked singleton as a float for higher precedence.
+class UncertainConstant(UncertainArray):
+    # We define the uncertain singleton as a float for higher precedence.
     # Note that it can be tricky sometimes w/ type comparison
     _data = data = np.array(0.)
     _mask = mask = np.array(True)
@@ -5890,83 +5817,66 @@ class MaskedConstant(MaskedArray):
         return self
 
     def __str__(self):
-        return str(masked_print_option._display)
+        return str(uncertain_print_option._display)
 
     def __repr__(self):
-        return 'masked'
+        return 'uncertain'
 
     def flatten(self):
-        return masked_array([self._data], dtype=float, mask=[True])
+        return uncertain_array([self._data], dtype=float, mask=[True])
 
     def __reduce__(self):
-        """Override of MaskedArray's __reduce__.
+        """Override of UncertainArray's __reduce__.
         """
         return (self.__class__, ())
 
 
-masked = masked_singleton = MaskedConstant()
-masked_array = MaskedArray
+uncertain = uncertain_singleton = UncertainConstant()
+uncertain_array = UncertainArray
 
 
-def array(data, dtype=None, copy=False, order=None,
-          mask=nomask, fill_value=None, keep_mask=True,
-          hard_mask=False, shrink=True, subok=True, ndmin=0):
+def is_uncertain(x):
     """
-    Shortcut to MaskedArray.
-
-    The options are in a different order for convenience and backwards
-    compatibility.
-
-    """
-    return MaskedArray(data, mask=mask, dtype=dtype, copy=copy,
-                       subok=subok, keep_mask=keep_mask,
-                       hard_mask=hard_mask, fill_value=fill_value,
-                       ndmin=ndmin, shrink=shrink, order=order)
-array.__doc__ = masked_array.__doc__
-
-
-def is_masked(x):
-    """
-    Determine whether input has masked values.
+    Determine whether input has uncertain values.
 
     Accepts any object as input, but always returns False unless the
-    input is a MaskedArray containing masked values.
+    input is a UncertainArray containing uncertain values.
 
     Parameters
     ----------
     x : array_like
-        Array to check for masked values.
+        Array to check for uncertain values.
 
     Returns
     -------
     result : bool
-        True if `x` is a MaskedArray with masked values, False otherwise.
+        True if `x` is a UncertainArray with uncertain values, False otherwise.
 
     Examples
     --------
     >>> import numpy.ma as ma
-    >>> x = ma.masked_equal([0, 1, 0, 2, 3], 0)
+    >>> x = ma.uncertain_equal([0, 1, 0, 2, 3], 0)
     >>> x
-    masked_array(data = [-- 1 -- 2 3],
+    uncertain_array(data = [-- 1 -- 2 3],
           mask = [ True False  True False False],
           fill_value=999999)
-    >>> ma.is_masked(x)
+    >>> ma.is_uncertain(x)
     True
-    >>> x = ma.masked_equal([0, 1, 0, 2, 3], 42)
+    >>> x = ma.uncertain_equal([0, 1, 0, 2, 3], 42)
     >>> x
-    masked_array(data = [0 1 0 2 3],
+    uncertain_array(data = [0 1 0 2 3],
           mask = False,
           fill_value=999999)
-    >>> ma.is_masked(x)
+    >>> ma.is_uncertain(x)
     False
 
-    Always returns False if `x` isn't a MaskedArray.
+    Always returns False if `x` isn't a UncertainArray.
 
     >>> x = [False, True, False]
-    >>> ma.is_masked(x)
+    >>> ma.is_uncertain(x)
     False
     >>> x = 'a string'
-    >>> ma.is_masked(x)
+    >>> ma.is_uncertain(x)
     False
 
     """
@@ -6020,7 +5930,7 @@ class _extrema_operation(object):
             if hasattr(t, '_mask'):
                 t._mask = m
             elif m:
-                t = masked
+                t = uncertain
         return t
 
     def outer(self, a, b):
@@ -6034,8 +5944,8 @@ class _extrema_operation(object):
             mb = getmaskarray(b)
             m = logical_or.outer(ma, mb)
         result = self.ufunc.outer(filled(a), filled(b))
-        if not isinstance(result, MaskedArray):
-            result = result.view(MaskedArray)
+        if not isinstance(result, UncertainArray):
+            result = result.view(UncertainArray)
         result._mask = m
         return result
 
@@ -6077,7 +5987,7 @@ def min(obj, axis=None, out=None, fill_value=None, keepdims=np._NoValue):
         # fill_value argument
         return asanyarray(obj).min(axis=axis, fill_value=fill_value,
                                    out=out, **kwargs)
-min.__doc__ = MaskedArray.min.__doc__
+min.__doc__ = UncertainArray.min.__doc__
 
 def max(obj, axis=None, out=None, fill_value=None, keepdims=np._NoValue):
     kwargs = {} if keepdims is np._NoValue else {'keepdims': keepdims}
@@ -6089,7 +5999,7 @@ def max(obj, axis=None, out=None, fill_value=None, keepdims=np._NoValue):
         # fill_value argument
         return asanyarray(obj).max(axis=axis, fill_value=fill_value,
                                    out=out, **kwargs)
-max.__doc__ = MaskedArray.max.__doc__
+max.__doc__ = UncertainArray.max.__doc__
 
 
 def ptp(obj, axis=None, out=None, fill_value=None):
@@ -6103,7 +6013,7 @@ def ptp(obj, axis=None, out=None, fill_value=None):
         # If obj doesn't have a ptp method or if the method doesn't accept
         # a fill_value argument
         return asanyarray(obj).ptp(axis=axis, fill_value=fill_value, out=out)
-ptp.__doc__ = MaskedArray.ptp.__doc__
+ptp.__doc__ = UncertainArray.ptp.__doc__
 
 
 ##############################################################################
@@ -6113,7 +6023,7 @@ ptp.__doc__ = MaskedArray.ptp.__doc__
 
 class _frommethod:
     """
-    Define functions from existing MaskedArray methods.
+    Define functions from existing UncertainArray methods.
 
     Parameters
     ----------
@@ -6129,7 +6039,7 @@ class _frommethod:
 
     def getdoc(self):
         "Return the doc of the function (from the doc of the method)."
-        meth = getattr(MaskedArray, self.__name__, None) or\
+        meth = getattr(UncertainArray, self.__name__, None) or\
             getattr(np, self.__name__, None)
         signature = self.__name__ + get_object_signature(meth)
         if meth is not None:
@@ -6148,19 +6058,18 @@ class _frommethod:
         method = getattr(a, method_name, None)
         if method is not None:
             return method(*args, **params)
-        # Still here ? Then a is not a MaskedArray
-        method = getattr(MaskedArray, method_name, None)
+        # Still here ? Then a is not a UncertainArray
+        method = getattr(UncertainArray, method_name, None)
         if method is not None:
-            return method(MaskedArray(a), *args, **params)
+            return method(UncertainArray(a), *args, **params)
         # Still here ? OK, let's call the corresponding np function
         method = getattr(np, method_name)
         return method(a, *args, **params)
 
 
 all = _frommethod('all')
-anomalies = anom = _frommethod('anom')
+#anomalies = anom = _frommethod('anom')
 any = _frommethod('any')
-compress = _frommethod('compress', reversed=True)
 cumprod = _frommethod('cumprod')
 cumsum = _frommethod('cumsum')
 copy = _frommethod('copy')
@@ -6189,7 +6098,7 @@ count = _frommethod('count')
 def take(a, indices, axis=None, out=None, mode='raise'):
     """
     """
-    a = masked_array(a)
+    a = uncertain_array(a)
     return a.take(indices, axis=axis, out=out, mode=mode)
 
 
@@ -6197,7 +6106,7 @@ def power(a, b, third=None):
     """
     Returns element-wise base array raised to power from second array.
 
-    This is the masked array version of `numpy.power`. For details see
+    This is the uncertain array version of `numpy.power`. For details see
     `numpy.power`.
 
     See Also
@@ -6220,11 +6129,11 @@ def power(a, b, third=None):
     fa = getdata(a)
     fb = getdata(b)
     # Get the type of the result (so that we preserve subclasses)
-    if isinstance(a, MaskedArray):
+    if isinstance(a, UncertainArray):
         basetype = type(a)
     else:
-        basetype = MaskedArray
-    # Get the result and view it as a (subclass of) MaskedArray
+        basetype = UncertainArray
+    # Get the result and view it as a (subclass of) UncertainArray
     with np.errstate(divide='ignore', invalid='ignore'):
         result = np.where(m, fa, umath.power(fa, fb)).view(basetype)
     result._update_from(a)
@@ -6233,12 +6142,12 @@ def power(a, b, third=None):
     # Add the initial mask
     if m is not nomask:
         if not (result.ndim):
-            return masked
+            return uncertain
         result._mask = np.logical_or(m, invalid)
     # Fix the invalid parts
     if invalid.any():
         if not result.ndim:
-            return masked
+            return uncertain
         elif result._mask is nomask:
             result._mask = invalid
         result._data[invalid] = result.fill_value
@@ -6253,7 +6162,7 @@ def argsort(a, axis=None, kind='quicksort', order=None, fill_value=None):
     if axis is None:
         return d.argsort(kind=kind, order=order)
     return d.argsort(axis, kind=kind, order=order)
-argsort.__doc__ = MaskedArray.argsort.__doc__
+argsort.__doc__ = UncertainArray.argsort.__doc__
 
 argmin = _frommethod('argmin')
 argmax = _frommethod('argmax')
@@ -6287,25 +6196,7 @@ def sort(a, axis=-1, kind='quicksort', order=None, endwith=True, fill_value=None
                            indexing='ij')
         indx[axis] = sindx
     return a[indx]
-sort.__doc__ = MaskedArray.sort.__doc__
-
-
-def compressed(x):
-    """
-    Return all the non-masked data as a 1-D array.
-
-    This function is equivalent to calling the "compressed" method of a
-    `MaskedArray`, see `MaskedArray.compressed` for details.
-
-    See Also
-    --------
-    MaskedArray.compressed
-        Equivalent method.
-
-    """
-    if not isinstance(x, MaskedArray):
-        x = asanyarray(x)
-    return x.compressed()
+sort.__doc__ = UncertainArray.sort.__doc__
 
 
 def concatenate(arrays, axis=0):
@@ -6322,8 +6213,8 @@ def concatenate(arrays, axis=0):
 
     Returns
     -------
-    result : MaskedArray
-        The concatenated array with any masked entries preserved.
+    result : UncertainArray
+        The concatenated array with any uncertain entries preserved.
 
     See Also
     --------
@@ -6333,24 +6224,24 @@ def concatenate(arrays, axis=0):
     --------
     >>> import numpy.ma as ma
     >>> a = ma.arange(3)
-    >>> a[1] = ma.masked
+    >>> a[1] = ma.uncertain
     >>> b = ma.arange(2, 5)
     >>> a
-    masked_array(data = [0 -- 2],
+    uncertain_array(data = [0 -- 2],
                  mask = [False  True False],
            fill_value = 999999)
     >>> b
-    masked_array(data = [2 3 4],
+    uncertain_array(data = [2 3 4],
                  mask = False,
            fill_value = 999999)
     >>> ma.concatenate([a, b])
-    masked_array(data = [0 -- 2 2 3 4],
+    uncertain_array(data = [0 -- 2 2 3 4],
                  mask = [False  True False False False False],
            fill_value = 999999)
 
     """
     d = np.concatenate([getdata(a) for a in arrays], axis)
-    rcls = get_masked_subclass(*arrays)
+    rcls = get_uncertain_subclass(*arrays)
     data = d.view(rcls)
     # Check whether one of the arrays has a non-empty mask.
     for x in arrays:
@@ -6373,7 +6264,7 @@ def diag(v, k=0):
     """
     Extract a diagonal or construct a diagonal array.
 
-    This function is the equivalent of `numpy.diag` that takes masked
+    This function is the equivalent of `numpy.diag` that takes uncertain
     values into account, see `numpy.diag` for details.
 
     See Also
@@ -6381,7 +6272,7 @@ def diag(v, k=0):
     numpy.diag : Equivalent function for ndarrays.
 
     """
-    output = np.diag(v, k).view(MaskedArray)
+    output = np.diag(v, k).view(UncertainArray)
     if getmask(v) is not nomask:
         output._mask = np.diag(v._mask, k)
     return output
@@ -6393,7 +6284,7 @@ def expand_dims(x, axis):
 
     Expands the shape of the array by including a new axis before the one
     specified by the `axis` parameter. This function behaves the same as
-    `numpy.expand_dims` but preserves masked elements.
+    `numpy.expand_dims` but preserves uncertain elements.
 
     See Also
     --------
@@ -6403,15 +6294,15 @@ def expand_dims(x, axis):
     --------
     >>> import numpy.ma as ma
     >>> x = ma.array([1, 2, 4])
-    >>> x[1] = ma.masked
+    >>> x[1] = ma.uncertain
     >>> x
-    masked_array(data = [1 -- 4],
+    uncertain_array(data = [1 -- 4],
                  mask = [False  True False],
            fill_value = 999999)
     >>> np.expand_dims(x, axis=0)
     array([[1, 2, 4]])
     >>> ma.expand_dims(x, axis=0)
-    masked_array(data =
+    uncertain_array(data =
      [[1 -- 4]],
                  mask =
      [[False  True False]],
@@ -6420,7 +6311,7 @@ def expand_dims(x, axis):
     The same result can be achieved using slicing syntax with `np.newaxis`.
 
     >>> x[np.newaxis, :]
-    masked_array(data =
+    uncertain_array(data =
      [[1 -- 4]],
                  mask =
      [[False  True False]],
@@ -6428,7 +6319,7 @@ def expand_dims(x, axis):
 
     """
     result = n_expand_dims(x, axis)
-    if isinstance(x, MaskedArray):
+    if isinstance(x, UncertainArray):
         new_shape = result.shape
         result = x.view()
         result.shape = new_shape
@@ -6437,58 +6328,17 @@ def expand_dims(x, axis):
     return result
 
 
-def left_shift(a, n):
-    """
-    Shift the bits of an integer to the left.
-
-    This is the masked array version of `numpy.left_shift`, for details
-    see that function.
-
-    See Also
-    --------
-    numpy.left_shift
-
-    """
-    m = getmask(a)
-    if m is nomask:
-        d = umath.left_shift(filled(a), n)
-        return masked_array(d)
-    else:
-        d = umath.left_shift(filled(a, 0), n)
-        return masked_array(d, mask=m)
-
-
-def right_shift(a, n):
-    """
-    Shift the bits of an integer to the right.
-
-    This is the masked array version of `numpy.right_shift`, for details
-    see that function.
-
-    See Also
-    --------
-    numpy.right_shift
-
-    """
-    m = getmask(a)
-    if m is nomask:
-        d = umath.right_shift(filled(a), n)
-        return masked_array(d)
-    else:
-        d = umath.right_shift(filled(a, 0), n)
-        return masked_array(d, mask=m)
-
 
 def put(a, indices, values, mode='raise'):
     """
     Set storage-indexed locations to corresponding values.
 
-    This function is equivalent to `MaskedArray.put`, see that method
+    This function is equivalent to `UncertainArray.put`, see that method
     for details.
 
     See Also
     --------
-    MaskedArray.put
+    UncertainArray.put
 
     """
     # We can't use 'frommethod', the order of arguments is different
@@ -6502,7 +6352,7 @@ def putmask(a, mask, values):  # , mode='raise'):
     """
     Changes elements of an array based on conditional and input values.
 
-    This is the masked array version of `numpy.putmask`, for details see
+    This is the uncertain array version of `numpy.putmask`, for details see
     `numpy.putmask`.
 
     See Also
@@ -6511,13 +6361,13 @@ def putmask(a, mask, values):  # , mode='raise'):
 
     Notes
     -----
-    Using a masked array as `values` will **not** transform a `ndarray` into
-    a `MaskedArray`.
+    Using a uncertain array as `values` will **not** transform a `ndarray` into
+    a `UncertainArray`.
 
     """
     # We can't use 'frommethod', the order of arguments is different
-    if not isinstance(a, MaskedArray):
-        a = a.view(MaskedArray)
+    if not isinstance(a, UncertainArray):
+        a = a.view(UncertainArray)
     (valdata, valmask) = (getdata(values), getmask(values))
     if getmask(a) is nomask:
         if valmask is not nomask:
@@ -6551,9 +6401,9 @@ def transpose(a, axes=None):
     --------
     >>> import numpy.ma as ma
     >>> x = ma.arange(4).reshape((2,2))
-    >>> x[1, 1] = ma.masked
+    >>> x[1, 1] = ma.uncertain
     >>>> x
-    masked_array(data =
+    uncertain_array(data =
      [[0 1]
      [2 --]],
                  mask =
@@ -6561,7 +6411,7 @@ def transpose(a, axes=None):
      [False  True]],
            fill_value = 999999)
     >>> ma.transpose(x)
-    masked_array(data =
+    uncertain_array(data =
      [[0 2]
      [1 --]],
                  mask =
@@ -6574,18 +6424,18 @@ def transpose(a, axes=None):
     try:
         return a.transpose(axes)
     except AttributeError:
-        return narray(a, copy=False).transpose(axes).view(MaskedArray)
+        return narray(a, copy=False).transpose(axes).view(UncertainArray)
 
 
 def reshape(a, new_shape, order='C'):
     """
     Returns an array containing the same data with a new shape.
 
-    Refer to `MaskedArray.reshape` for full documentation.
+    Refer to `UncertainArray.reshape` for full documentation.
 
     See Also
     --------
-    MaskedArray.reshape : equivalent function
+    UncertainArray.reshape : equivalent function
 
     """
     # We can't use 'frommethod', it whine about some parameters. Dmmit.
@@ -6593,17 +6443,17 @@ def reshape(a, new_shape, order='C'):
         return a.reshape(new_shape, order=order)
     except AttributeError:
         _tmp = narray(a, copy=False).reshape(new_shape, order=order)
-        return _tmp.view(MaskedArray)
+        return _tmp.view(UncertainArray)
 
 
 def resize(x, new_shape):
     """
-    Return a new masked array with the specified size and shape.
+    Return a new uncertain array with the specified size and shape.
 
-    This is the masked equivalent of the `numpy.resize` function. The new
+    This is the uncertain equivalent of the `numpy.resize` function. The new
     array is filled with repeated copies of `x` (in the order that the
-    data are stored in memory). If `x` is masked, the new array will be
-    masked, and the new mask will be a repetition of the old one.
+    data are stored in memory). If `x` is uncertain, the new array will be
+    uncertain, and the new mask will be a repetition of the old one.
 
     See Also
     --------
@@ -6613,9 +6463,9 @@ def resize(x, new_shape):
     --------
     >>> import numpy.ma as ma
     >>> a = ma.array([[1, 2] ,[3, 4]])
-    >>> a[0, 1] = ma.masked
+    >>> a[0, 1] = ma.uncertain
     >>> a
-    masked_array(data =
+    uncertain_array(data =
      [[1 --]
      [3 4]],
                  mask =
@@ -6627,7 +6477,7 @@ def resize(x, new_shape):
            [4, 1, 2],
            [3, 4, 1]])
     >>> ma.resize(a, (3, 3))
-    masked_array(data =
+    uncertain_array(data =
      [[1 -- 3]
      [4 1 --]
      [3 4 1]],
@@ -6637,11 +6487,11 @@ def resize(x, new_shape):
      [False False False]],
            fill_value = 999999)
 
-    A MaskedArray is always returned, regardless of the input type.
+    A UncertainArray is always returned, regardless of the input type.
 
     >>> a = np.array([[1, 2] ,[3, 4]])
     >>> ma.resize(a, (3, 3))
-    masked_array(data =
+    uncertain_array(data =
      [[1 2 3]
      [4 1 2]
      [3 4 1]],
@@ -6654,7 +6504,7 @@ def resize(x, new_shape):
     m = getmask(x)
     if m is not nomask:
         m = np.resize(m, new_shape)
-    result = np.resize(x, new_shape).view(get_masked_subclass(x))
+    result = np.resize(x, new_shape).view(get_uncertain_subclass(x))
     if result.ndim:
         result._mask = m
     return result
@@ -6662,7 +6512,7 @@ def resize(x, new_shape):
 
 def rank(obj):
     """
-    maskedarray version of the numpy function.
+    uncertainarray version of the numpy function.
 
     .. note::
         Deprecated since 1.10.0
@@ -6679,7 +6529,7 @@ rank.__doc__ = np.rank.__doc__
 
 def ndim(obj):
     """
-    maskedarray version of the numpy function.
+    uncertainarray version of the numpy function.
 
     """
     return np.ndim(getdata(obj))
@@ -6688,13 +6538,13 @@ ndim.__doc__ = np.ndim.__doc__
 
 
 def shape(obj):
-    "maskedarray version of the numpy function."
+    "uncertainarray version of the numpy function."
     return np.shape(getdata(obj))
 shape.__doc__ = np.shape.__doc__
 
 
 def size(obj, axis=None):
-    "maskedarray version of the numpy function."
+    "uncertainarray version of the numpy function."
     return np.size(getdata(obj), axis)
 size.__doc__ = np.size.__doc__
 
@@ -6706,9 +6556,9 @@ size.__doc__ = np.size.__doc__
 
 def where(condition, x=_NoValue, y=_NoValue):
     """
-    Return a masked array with elements from x or y, depending on condition.
+    Return a uncertain array with elements from x or y, depending on condition.
 
-    Returns a masked array, shaped like condition, where the elements
+    Returns a uncertain array, shaped like condition, where the elements
     are from `x` when `condition` is True, and from `y` otherwise.
     If neither `x` nor `y` are given, the function returns a tuple of
     indices where `condition` is True (the result of
@@ -6725,8 +6575,8 @@ def where(condition, x=_NoValue, y=_NoValue):
 
     Returns
     -------
-    out : MaskedArray or tuple of ndarrays
-        The resulting masked array if `x` and `y` were given, otherwise
+    out : UncertainArray or tuple of ndarrays
+        The resulting uncertain array if `x` and `y` were given, otherwise
         the result of ``condition.nonzero()``.
 
     See Also
@@ -6767,15 +6617,15 @@ def where(condition, x=_NoValue, y=_NoValue):
     # Get the data
     xv = getdata(x)
     yv = getdata(y)
-    if x is masked:
+    if x is uncertain:
         ndtype = yv.dtype
-    elif y is masked:
+    elif y is uncertain:
         ndtype = xv.dtype
     else:
         ndtype = np.find_common_type([xv.dtype, yv.dtype], [])
 
     # Construct an empty array and fill it
-    d = np.empty(fc.shape, dtype=ndtype).view(MaskedArray)
+    d = np.empty(fc.shape, dtype=ndtype).view(UncertainArray)
     np.copyto(d._data, xv.astype(ndtype), where=fc)
     np.copyto(d._data, yv.astype(ndtype), where=notfc)
 
@@ -6831,20 +6681,20 @@ def choose(indices, choices, out=None, mode='raise'):
     >>> choice = np.array([[1,1,1], [2,2,2], [3,3,3]])
     >>> a = np.array([2, 1, 0])
     >>> np.ma.choose(a, choice)
-    masked_array(data = [3 2 1],
+    uncertain_array(data = [3 2 1],
           mask = False,
           fill_value=999999)
 
     """
     def fmask(x):
-        "Returns the filled array, or True if masked."
-        if x is masked:
+        "Returns the filled array, or True if uncertain."
+        if x is uncertain:
             return True
         return filled(x)
 
     def nmask(x):
-        "Returns the mask, True if ``masked``, False if ``nomask``."
-        if x is masked:
+        "Returns the mask, True if ``uncertain``, False if ``nomask``."
+        if x is uncertain:
             return True
         return getmask(x)
     # Get the indices.
@@ -6857,9 +6707,9 @@ def choose(indices, choices, out=None, mode='raise'):
     outputmask = make_mask(mask_or(outputmask, getmask(indices)),
                            copy=0, shrink=True)
     # Get the choices.
-    d = np.choose(c, data, mode=mode, out=out).view(MaskedArray)
+    d = np.choose(c, data, mode=mode, out=out).view(UncertainArray)
     if out is not None:
-        if isinstance(out, MaskedArray):
+        if isinstance(out, UncertainArray):
             out.__setmask__(outputmask)
         return out
     d.__setmask__(outputmask)
@@ -6904,21 +6754,21 @@ round = round_
 # from extras.py for compatibility.
 def mask_rowcols(a, axis=None):
     """
-    Mask rows and/or columns of a 2D array that contain masked values.
+    Mask rows and/or columns of a 2D array that contain uncertain values.
 
     Mask whole rows and/or columns of a 2D array that contain
-    masked values.  The masking behavior is selected using the
+    uncertain values.  The masking behavior is selected using the
     `axis` parameter.
 
-      - If `axis` is None, rows *and* columns are masked.
-      - If `axis` is 0, only rows are masked.
-      - If `axis` is 1 or -1, only columns are masked.
+      - If `axis` is None, rows *and* columns are uncertain.
+      - If `axis` is 0, only rows are uncertain.
+      - If `axis` is 1 or -1, only columns are uncertain.
 
     Parameters
     ----------
-    a : array_like, MaskedArray
-        The array to mask.  If not a MaskedArray instance (or if no array
-        elements are masked).  The result is a MaskedArray with `mask` set
+    a : array_like, UncertainArray
+        The array to mask.  If not a UncertainArray instance (or if no array
+        elements are uncertain).  The result is a UncertainArray with `mask` set
         to `nomask` (False). Must be a 2D array.
     axis : int, optional
         Axis along which to perform the operation. If None, applies to a
@@ -6926,8 +6776,8 @@ def mask_rowcols(a, axis=None):
 
     Returns
     -------
-    a : MaskedArray
-        A modified version of the input array, masked depending on the value
+    a : UncertainArray
+        A modified version of the input array, uncertain depending on the value
         of the `axis` parameter.
 
     Raises
@@ -6937,9 +6787,9 @@ def mask_rowcols(a, axis=None):
 
     See Also
     --------
-    mask_rows : Mask rows of a 2D array that contain masked values.
-    mask_cols : Mask cols of a 2D array that contain masked values.
-    masked_where : Mask where a condition is met.
+    mask_rows : Mask rows of a 2D array that contain uncertain values.
+    mask_cols : Mask cols of a 2D array that contain uncertain values.
+    uncertain_where : Mask where a condition is met.
 
     Notes
     -----
@@ -6954,9 +6804,9 @@ def mask_rowcols(a, axis=None):
     array([[0, 0, 0],
            [0, 1, 0],
            [0, 0, 0]])
-    >>> a = ma.masked_equal(a, 1)
+    >>> a = ma.uncertain_equal(a, 1)
     >>> a
-    masked_array(data =
+    uncertain_array(data =
      [[0 0 0]
      [0 -- 0]
      [0 0 0]],
@@ -6966,7 +6816,7 @@ def mask_rowcols(a, axis=None):
      [False False False]],
           fill_value=999999)
     >>> ma.mask_rowcols(a)
-    masked_array(data =
+    uncertain_array(data =
      [[0 -- 0]
      [-- -- --]
      [0 -- 0]],
@@ -6981,26 +6831,26 @@ def mask_rowcols(a, axis=None):
     if a.ndim != 2:
         raise NotImplementedError("mask_rowcols works for 2D arrays only.")
     m = getmask(a)
-    # Nothing is masked: return a
+    # Nothing is uncertain: return a
     if m is nomask or not m.any():
         return a
-    maskedval = m.nonzero()
+    uncertainval = m.nonzero()
     a._mask = a._mask.copy()
     if not axis:
-        a[np.unique(maskedval[0])] = masked
+        a[np.unique(uncertainval[0])] = uncertain
     if axis in [None, 1, -1]:
-        a[:, np.unique(maskedval[1])] = masked
+        a[:, np.unique(uncertainval[1])] = uncertain
     return a
 
 
-# Include masked dot here to avoid import problems in getting it from
+# Include uncertain dot here to avoid import problems in getting it from
 # extras.py. Note that it is not included in __all__, but rather exported
 # from extras in order to avoid backward compatibility problems.
 def dot(a, b, strict=False, out=None):
     """
     Return the dot product of two arrays.
 
-    This function is the equivalent of `numpy.dot` that takes masked values
+    This function is the equivalent of `numpy.dot` that takes uncertain values
     into account. Note that `strict` and `out` are in different position
     than in the method version. In order to maintain compatibility with the
     corresponding method, it is recommended that the optional arguments be
@@ -7012,14 +6862,14 @@ def dot(a, b, strict=False, out=None):
 
     Parameters
     ----------
-    a, b : masked_array_like
+    a, b : uncertain_array_like
         Inputs arrays.
     strict : bool, optional
-        Whether masked data are propagated (True) or set to 0 (False) for
+        Whether uncertain data are propagated (True) or set to 0 (False) for
         the computation. Default is False.  Propagating the mask means that
-        if a masked value appears in a row or column, the whole row or
-        column is considered masked.
-    out : masked_array, optional
+        if a uncertain value appears in a row or column, the whole row or
+        column is considered uncertain.
+    out : uncertain_array, optional
         Output argument. This must have the exact kind that would be returned
         if it was not used. In particular, it must have the right type, must be
         C-contiguous, and its dtype must be the dtype that would be returned
@@ -7038,7 +6888,7 @@ def dot(a, b, strict=False, out=None):
     >>> a = ma.array([[1, 2, 3], [4, 5, 6]], mask=[[1, 0, 0], [0, 0, 0]])
     >>> b = ma.array([[1, 2], [3, 4], [5, 6]], mask=[[1, 0], [0, 0], [0, 0]])
     >>> np.ma.dot(a, b)
-    masked_array(data =
+    uncertain_array(data =
      [[21 26]
      [45 64]],
                  mask =
@@ -7046,7 +6896,7 @@ def dot(a, b, strict=False, out=None):
      [False False]],
            fill_value = 999999)
     >>> np.ma.dot(a, b, strict=True)
-    masked_array(data =
+    uncertain_array(data =
      [[-- --]
      [-- 64]],
                  mask =
@@ -7068,7 +6918,7 @@ def dot(a, b, strict=False, out=None):
         m = ~np.dot(am, bm)
         if d.ndim == 0:
             d = np.asarray(d)
-        r = d.view(get_masked_subclass(a, b))
+        r = d.view(get_uncertain_subclass(a, b))
         r.__setmask__(m)
         return r
     else:
@@ -7098,37 +6948,37 @@ def inner(a, b):
         fa.shape = (1,)
     if len(fb.shape) == 0:
         fb.shape = (1,)
-    return np.inner(fa, fb).view(MaskedArray)
+    return np.inner(fa, fb).view(UncertainArray)
 innerproduct = inner
 
 
 def outer(a, b):
-    "maskedarray version of the numpy function."
+    "uncertainarray version of the numpy function."
     fa = filled(a, 0).ravel()
     fb = filled(b, 0).ravel()
     d = np.outer(fa, fb)
     ma = getmask(a)
     mb = getmask(b)
     if ma is nomask and mb is nomask:
-        return masked_array(d)
+        return uncertain_array(d)
     ma = getmaskarray(a)
     mb = getmaskarray(b)
     m = make_mask(1 - np.outer(1 - ma, 1 - mb), copy=0)
-    return masked_array(d, mask=m)
+    return uncertain_array(d, mask=m)
 outerproduct = outer
 
 
 def allequal(a, b, fill_value=True):
     """
     Return True if all entries of a and b are equal, using
-    fill_value as a truth value where either or both are masked.
+    fill_value as a truth value where either or both are uncertain.
 
     Parameters
     ----------
     a, b : array_like
         Input arrays to compare.
     fill_value : bool, optional
-        Whether masked values in a or b are considered equal (True) or not
+        Whether uncertain values in a or b are considered equal (True) or not
         (False).
 
     Returns
@@ -7147,7 +6997,7 @@ def allequal(a, b, fill_value=True):
     --------
     >>> a = ma.array([1e10, 1e-7, 42.0], mask=[0, 0, 1])
     >>> a
-    masked_array(data = [10000000000.0 1e-07 --],
+    uncertain_array(data = [10000000000.0 1e-07 --],
           mask = [False False  True],
           fill_value=1e+20)
 
@@ -7180,8 +7030,8 @@ def allclose(a, b, rtol=1e-5, atol=1e-8):
     """
     Returns True if two arrays are element-wise equal within a tolerance.
 
-    This function is equivalent to `allclose` except that masked values
-    are treated as equal (default) or unequal, depending on the `masked_equal`
+    This function is equivalent to `allclose` except that uncertain values
+    are treated as equal (default) or unequal, depending on the `uncertain_equal`
     argument.
 
     Parameters
@@ -7205,7 +7055,7 @@ def allclose(a, b, rtol=1e-5, atol=1e-8):
     See Also
     --------
     all, any
-    numpy.allclose : the non-masked `allclose`.
+    numpy.allclose : the non-uncertain `allclose`.
 
     Notes
     -----
@@ -7221,7 +7071,7 @@ def allclose(a, b, rtol=1e-5, atol=1e-8):
     --------
     >>> a = ma.array([1e10, 1e-7, 42.0], mask=[0, 0, 1])
     >>> a
-    masked_array(data = [10000000000.0 1e-07 --],
+    uncertain_array(data = [10000000000.0 1e-07 --],
                  mask = [False False  True],
            fill_value = 1e+20)
     >>> b = ma.array([1e10, 1e-8, -42.0], mask=[0, 0, 1])
@@ -7232,7 +7082,7 @@ def allclose(a, b, rtol=1e-5, atol=1e-8):
     >>> b = ma.array([1.00001e10, 1e-9, -42.0], mask=[0, 0, 1])
     >>> ma.allclose(a, b)
     True
-    >>> ma.allclose(a, b, masked_equal=False)
+    >>> ma.allclose(a, b, uncertain_equal=False)
     False
 
     Masked values are not compared directly.
@@ -7241,36 +7091,38 @@ def allclose(a, b, rtol=1e-5, atol=1e-8):
     >>> b = ma.array([1.00001e10, 1e-9, 42.0], mask=[0, 0, 1])
     >>> ma.allclose(a, b)
     True
-    >>> ma.allclose(a, b, masked_equal=False)
+    >>> ma.allclose(a, b, uncertain_equal=False)
     False
 
     """
-    x = masked_array(a, copy=False)
-    y = masked_array(b, copy=False)
+    x = uncertain_array(a, copy=False)
+    y = uncertain_array(b, copy=False)
 
     # make sure y is an inexact type to avoid abs(MIN_INT); will cause
     # casting of x later.
     dtype = np.result_type(y, 1.)
     if y.dtype != dtype:
-        y = masked_array(y, dtype=dtype, copy=False)
+        y = uncertain_array(y, dtype=dtype, copy=False)
 
     m = mask_or(getmask(x), getmask(y))
-    xinf = np.isinf(masked_array(x, copy=False, mask=m)).filled(False)
+    xinf = np.isinf(uncertain_array(x, m, copy=False))
     # If we have some infs, they should fall at the same place.
     if not np.all(xinf == filled(np.isinf(y), False)):
         return False
     # No infs at all
     if not np.any(xinf):
         d = filled(less_equal(absolute(x - y), atol + rtol * absolute(y)),
-                   masked_equal)
+                   uncertain_equal)
         return np.all(d)
 
-    if not np.all(filled(x[xinf] == y[xinf], masked_equal)):
+    if not np.all(filled(x[xinf] == y[xinf], uncertain_equal)):
         return False
     x = x[~xinf]
     y = y[~xinf]
 
     d = filled(less_equal(absolute(x - y), atol + rtol * absolute(y)),
-               masked_equal)
+               uncertain_equal)
 
     return np.all(d)
+
+uncertain_array = UncertainArray

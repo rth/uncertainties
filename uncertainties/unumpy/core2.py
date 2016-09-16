@@ -1289,150 +1289,6 @@ def is_mask(m):
         return False
 
 
-def make_mask(m, copy=False, shrink=True, dtype=MaskType):
-    """
-    Create a boolean mask from an array.
-
-    Return `m` as a boolean mask, creating a copy if necessary or requested.
-    The function can accept any sequence that is convertible to integers,
-    or ``nomask``.  Does not require that contents must be 0s and 1s, values
-    of 0 are interepreted as False, everything else as True.
-
-    Parameters
-    ----------
-    m : array_like
-        Potential mask.
-    copy : bool, optional
-        Whether to return a copy of `m` (True) or `m` itself (False).
-    shrink : bool, optional
-        Whether to shrink `m` to ``nomask`` if all its values are False.
-    dtype : dtype, optional
-        Data-type of the output mask. By default, the output mask has a
-        dtype of MaskType (bool). If the dtype is flexible, each field has
-        a boolean dtype. This is ignored when `m` is ``nomask``, in which
-        case ``nomask`` is always returned.
-
-    Returns
-    -------
-    result : ndarray
-        A boolean mask derived from `m`.
-
-    Examples
-    --------
-    >>> import numpy.ma as ma
-    >>> m = [True, False, True, True]
-    >>> ma.make_mask(m)
-    array([ True, False,  True,  True], dtype=bool)
-    >>> m = [1, 0, 1, 1]
-    >>> ma.make_mask(m)
-    array([ True, False,  True,  True], dtype=bool)
-    >>> m = [1, 0, 2, -3]
-    >>> ma.make_mask(m)
-    array([ True, False,  True,  True], dtype=bool)
-
-    Effect of the `shrink` parameter.
-
-    >>> m = np.zeros(4)
-    >>> m
-    array([ 0.,  0.,  0.,  0.])
-    >>> ma.make_mask(m)
-    False
-    >>> ma.make_mask(m, shrink=False)
-    array([False, False, False, False], dtype=bool)
-
-    Using a flexible `dtype`.
-
-    >>> m = [1, 0, 1, 1]
-    >>> n = [0, 1, 0, 0]
-    >>> arr = []
-    >>> for man, mouse in zip(m, n):
-    ...     arr.append((man, mouse))
-    >>> arr
-    [(1, 0), (0, 1), (1, 0), (1, 0)]
-    >>> dtype = np.dtype({'names':['man', 'mouse'],
-                          'formats':[np.int, np.int]})
-    >>> arr = np.array(arr, dtype=dtype)
-    >>> arr
-    array([(1, 0), (0, 1), (1, 0), (1, 0)],
-          dtype=[('man', '<i4'), ('mouse', '<i4')])
-    >>> ma.make_mask(arr, dtype=dtype)
-    array([(True, False), (False, True), (True, False), (True, False)],
-          dtype=[('man', '|b1'), ('mouse', '|b1')])
-
-    """
-    if m is nomask:
-        return nomask
-    elif isinstance(m, ndarray):
-        # We won't return after this point to make sure we can shrink the mask
-        # Fill the mask in case there are missing data
-        m = filled(m, True)
-        # Make sure the input dtype is valid
-        dtype = make_mask_descr(dtype)
-        if m.dtype == dtype:
-            if copy:
-                result = m.copy()
-            else:
-                result = m
-        else:
-            result = np.array(m, dtype=dtype, copy=copy)
-    else:
-        result = np.array(filled(m, True), dtype=MaskType)
-    # Bas les masques !
-    if shrink and (not result.dtype.names) and (not result.any()):
-        return nomask
-    else:
-        return result
-
-
-def make_mask_none(newshape, dtype=None):
-    """
-    Return a boolean mask of the given shape, filled with False.
-
-    This function returns a boolean ndarray with all entries False, that can
-    be used in common mask manipulations. If a complex dtype is specified, the
-    type of each field is converted to a boolean type.
-
-    Parameters
-    ----------
-    newshape : tuple
-        A tuple indicating the shape of the mask.
-    dtype : {None, dtype}, optional
-        If None, use a MaskType instance. Otherwise, use a new datatype with
-        the same fields as `dtype`, converted to boolean types.
-
-    Returns
-    -------
-    result : ndarray
-        An ndarray of appropriate shape and dtype, filled with False.
-
-    See Also
-    --------
-    make_mask : Create a boolean mask from an array.
-    make_mask_descr : Construct a dtype description list from a given dtype.
-
-    Examples
-    --------
-    >>> import numpy.ma as ma
-    >>> ma.make_mask_none((3,))
-    array([False, False, False], dtype=bool)
-
-    Defining a more complex dtype.
-
-    >>> dtype = np.dtype({'names':['foo', 'bar'],
-                          'formats':[np.float32, np.int]})
-    >>> dtype
-    dtype([('foo', '<f4'), ('bar', '<i4')])
-    >>> ma.make_mask_none((3,), dtype=dtype)
-    array([(False, False), (False, False), (False, False)],
-          dtype=[('foo', '|b1'), ('bar', '|b1')])
-
-    """
-    if dtype is None:
-        result = np.zeros(newshape, dtype=MaskType)
-    else:
-        result = np.zeros(newshape, dtype=make_mask_descr(dtype))
-    return result
-
 
 def mask_or(m1, m2, copy=False, shrink=True):
     """
@@ -1497,63 +1353,6 @@ def mask_or(m1, m2, copy=False, shrink=True):
         _recursive_mask_or(m1, m2, newmask)
         return newmask
     return make_mask(umath.logical_or(m1, m2), copy=copy, shrink=shrink)
-
-
-def flatten_mask(mask):
-    """
-    Returns a completely flattened version of the mask, where nested fields
-    are collapsed.
-
-    Parameters
-    ----------
-    mask : array_like
-        Input array, which will be interpreted as booleans.
-
-    Returns
-    -------
-    flattened_mask : ndarray of bools
-        The flattened input.
-
-    Examples
-    --------
-    >>> mask = np.array([0, 0, 1], dtype=np.bool)
-    >>> flatten_mask(mask)
-    array([False, False,  True], dtype=bool)
-
-    >>> mask = np.array([(0, 0), (0, 1)], dtype=[('a', bool), ('b', bool)])
-    >>> flatten_mask(mask)
-    array([False, False, False,  True], dtype=bool)
-
-    >>> mdtype = [('a', bool), ('b', [('ba', bool), ('bb', bool)])]
-    >>> mask = np.array([(0, (0, 0)), (0, (0, 1))], dtype=mdtype)
-    >>> flatten_mask(mask)
-    array([False, False, False, False, False,  True], dtype=bool)
-
-    """
-
-    def _flatmask(mask):
-        "Flatten the mask and returns a (maybe nested) sequence of booleans."
-        mnames = mask.dtype.names
-        if mnames:
-            return [flatten_mask(mask[name]) for name in mnames]
-        else:
-            return mask
-
-    def _flatsequence(sequence):
-        "Generates a flattened version of the sequence."
-        try:
-            for element in sequence:
-                if hasattr(element, '__iter__'):
-                    for f in _flatsequence(element):
-                        yield f
-                else:
-                    yield element
-        except TypeError:
-            yield sequence
-
-    mask = np.asarray(mask)
-    flattened = _flatsequence(_flatmask(mask))
-    return np.array([_ for _ in flattened], dtype=bool)
 
 
 def _check_mask_axis(mask, axis, keepdims=np._NoValue):
@@ -2479,17 +2278,6 @@ class UncertainArray(ndarray):
         plain `UncertainArray`. Default is True.
     ndmin : int, optional
         Minimum number of dimensions. Default is 0.
-    fill_value : scalar, optional
-        Value used to fill in the uncertain values when necessary.
-        If None, a default based on the data-type is used.
-    keep_mask : bool, optional
-        Whether to combine `mask` with the mask of the input data, if any
-        (True), or to use only `mask` for the output (False). Default is True.
-    hard_mask : bool, optional
-        Whether to use a hard mask or not. With a hard mask, uncertain values
-        cannot be ununcertain. Default is False.
-    shrink : bool, optional
-        Whether to force compression of an empty mask. Default is True.
     order : {'C', 'F', 'A'}, optional
         Specify the order of the array.  If order is 'C', then the array
         will be in C-contiguous order (last-index varies the fastest).
@@ -2502,8 +2290,6 @@ class UncertainArray(ndarray):
     """
 
     __array_priority__ = 15
-    _defaultmask = nomask
-    _defaulthardmask = False
     _baseclass = ndarray
 
     # Maximum number of elements per axis used when printing an array. The
@@ -2511,9 +2297,9 @@ class UncertainArray(ndarray):
     _print_width = 100
     _print_width_1d = 1500
 
-    def __new__(cls, mean=None, std=None, dtype=None, copy=False,
+    def __new__(cls, data=None, std=None, dtype=None, copy=False,
                 subok=True, ndmin=0,
-                hard_mask=None, shrink=True, order=None, **options):
+                order=None, **options):
         """
         Create a new uncertain array from scratch.
 
@@ -2535,112 +2321,31 @@ class UncertainArray(ndarray):
         else:
             _data = ndarray.view(_data, type(data))
         # Backwards compatibility w/ numpy.core.ma.
-        if hasattr(data, '_mask') and not isinstance(data, ndarray):
-            _data._mask = data._mask
-            # FIXME _sharedmask is never used.
-            _sharedmask = True
-        # Process mask.
-        # Number of named fields (or zero if none)
-        names_ = _data.dtype.names or ()
-        # Type of the mask
-        if names_:
-            mdtype = make_mask_descr(_data.dtype)
-        else:
-            mdtype = MaskType
+        if hasattr(data, '_s') and not isinstance(data, ndarray):
+            _data._std = data._std
 
-        if mask is nomask:
-            # Case 1. : no mask in input.
+        sdtype = _data.dtype
+
+        if std is None:
+            # Case 1. : no uncertainty in input.
             # Erase the current mask ?
-            if not keep_mask:
-                # With a reduced version
-                if shrink:
-                    _data._mask = nomask
-                # With full version
-                else:
-                    _data._mask = np.zeros(_data.shape, dtype=mdtype)
-            # Check whether we missed something
-            elif isinstance(data, (tuple, list)):
-                try:
-                    # If data is a sequence of uncertain array
-                    mask = np.array([getmaskarray(m) for m in data],
-                                    dtype=mdtype)
-                except ValueError:
-                    # If data is nested
-                    mask = nomask
-                # Force shrinking of the mask if needed (and possible)
-                if (mdtype == MaskType) and mask.any():
-                    _data._mask = mask
-                    _data._sharedmask = False
-            else:
-                if copy:
-                    _data._mask = _data._mask.copy()
-                    _data._sharedmask = False
-                    # Reset the shape of the original mask
-                    if getmask(data) is not nomask:
-                        data._mask.shape = data.shape
-                else:
-                    _data._sharedmask = True
+            _data._std = np.zeros(_data.shape, dtype=sdtype)
         else:
-            # Case 2. : With a mask in input.
-            # If mask is boolean, create an array of True or False
-            if mask is True and mdtype == MaskType:
-                mask = np.ones(_data.shape, dtype=mdtype)
-            elif mask is False and mdtype == MaskType:
-                mask = np.zeros(_data.shape, dtype=mdtype)
-            else:
+            # Case 2. : With an uncertainty in input.
                 # Read the mask with the current mdtype
-                try:
-                    mask = np.array(mask, copy=copy, dtype=mdtype)
-                # Or assume it's a sequence of bool/int
-                except TypeError:
-                    mask = np.array([tuple([m] * len(mdtype)) for m in mask],
-                                    dtype=mdtype)
+            _std = np.array(std, copy=copy, dtype=sdtype)
             # Make sure the mask and the data have the same shape
-            if mask.shape != _data.shape:
-                (nd, nm) = (_data.size, mask.size)
+            if _std.shape != _data.shape:
+                (nd, nm) = (_data.size, _std.size)
                 if nm == 1:
-                    mask = np.resize(mask, _data.shape)
+                    _std = np.resize(_std, _data.shape)
                 elif nm == nd:
-                    mask = np.reshape(mask, _data.shape)
+                    _std = np.reshape(_std, _data.shape)
                 else:
                     msg = "Mask and data not compatible: data size is %i, " + \
                           "mask size is %i."
                     raise MaskError(msg % (nd, nm))
-                copy = True
-            # Set the mask to the new value
-            if _data._mask is nomask:
-                _data._mask = mask
-                _data._sharedmask = not copy
-            else:
-                if not keep_mask:
-                    _data._mask = mask
-                    _data._sharedmask = not copy
-                else:
-                    if names_:
-                        def _recursive_or(a, b):
-                            "do a|=b on each field of a, recursively"
-                            for name in a.dtype.names:
-                                (af, bf) = (a[name], b[name])
-                                if af.dtype.names:
-                                    _recursive_or(af, bf)
-                                else:
-                                    af |= bf
-                            return
-                        _recursive_or(_data._mask, mask)
-                    else:
-                        _data._mask = np.logical_or(mask, _data._mask)
-                    _data._sharedmask = False
-        # Update fill_value.
-        if fill_value is None:
-            fill_value = getattr(data, '_fill_value', None)
-        # But don't run the check unless we have something to check.
-        if fill_value is not None:
-            _data._fill_value = _check_fill_value(fill_value, _data.dtype)
-        # Process extra options ..
-        if hard_mask is None:
-            _data._hardmask = getattr(data, '_hardmask', False)
-        else:
-            _data._hardmask = hard_mask
+            _data._mask = _std
         _data._baseclass = _baseclass
         return _data
 
@@ -2660,10 +2365,7 @@ class UncertainArray(ndarray):
         _optinfo.update(getattr(obj, '_basedict', {}))
         if not isinstance(obj, UncertainArray):
             _optinfo.update(getattr(obj, '__dict__', {}))
-        _dict = dict(_fill_value=getattr(obj, '_fill_value', None),
-                     _hardmask=getattr(obj, '_hardmask', False),
-                     _sharedmask=getattr(obj, '_sharedmask', False),
-                     _isfield=getattr(obj, '_isfield', False),
+        _dict = dict(_isfield=getattr(obj, '_isfield', False),
                      _baseclass=getattr(obj, '_baseclass', _baseclass),
                      _optinfo=_optinfo,
                      _basedict=_optinfo)
@@ -2708,11 +2410,7 @@ class UncertainArray(ndarray):
         if isinstance(obj, ndarray):
             # XX: This looks like a bug -- shouldn't it check self.dtype
             # instead?
-            if obj.dtype.names:
-                _mask = getattr(obj, '_mask',
-                                make_mask_none(obj.shape, obj.dtype))
-            else:
-                _mask = getattr(obj, '_mask', nomask)
+            _std = getattr(obj, '_std', nomask)
 
             # If self and obj point to exactly the same data, then probably
             # self is a simple view of obj (e.g., self = obj[...]), so they
@@ -2723,23 +2421,19 @@ class UncertainArray(ndarray):
             # side-effecting 'obj' as well.
             if (obj.__array_interface__["data"][0]
                     != self.__array_interface__["data"][0]):
-                _mask = _mask.copy()
+                _std = _std.copy()
         else:
-            _mask = nomask
-        self._mask = _mask
+            _std = nomask
+            raise ValueError
+        self._std = _std
         # Finalize the mask
-        if self._mask is not nomask:
-            try:
-                self._mask.shape = self.shape
-            except ValueError:
-                self._mask = nomask
-            except (TypeError, AttributeError):
-                # When _mask.shape is not writable (because it's a void)
-                pass
-        # Finalize the fill_value for structured arrays
-        if self.dtype.names:
-            if self._fill_value is None:
-                self._fill_value = _check_fill_value(None, self.dtype)
+        try:
+            self._std.shape = self.shape
+        except ValueError:
+            self._std = nomask
+        except (TypeError, AttributeError):
+            # When _mask.shape is not writable (because it's a void)
+            pass
         return
 
     def __array_wrap__(self, obj, context=None):
@@ -3176,111 +2870,6 @@ class UncertainArray(ndarray):
 
     mask = property(fget=_get_mask, fset=__setmask__, doc="Mask")
 
-    def _get_recordmask(self):
-        """
-        Return the mask of the records.
-
-        A record is uncertain when all the fields are uncertain.
-
-        """
-        _mask = self._mask.view(ndarray)
-        if _mask.dtype.names is None:
-            return _mask
-        return np.all(flatten_structured_array(_mask), axis=-1)
-
-    def _set_recordmask(self):
-        """
-        Return the mask of the records.
-
-        A record is uncertain when all the fields are uncertain.
-
-        """
-        raise NotImplementedError("Coming soon: setting the mask per records!")
-
-    recordmask = property(fget=_get_recordmask)
-
-    def harden_mask(self):
-        """
-        Force the mask to hard.
-
-        Whether the mask of a uncertain array is hard or soft is determined by
-        its `hardmask` property. `harden_mask` sets `hardmask` to True.
-
-        See Also
-        --------
-        hardmask
-
-        """
-        self._hardmask = True
-        return self
-
-    def soften_mask(self):
-        """
-        Force the mask to soft.
-
-        Whether the mask of a uncertain array is hard or soft is determined by
-        its `hardmask` property. `soften_mask` sets `hardmask` to False.
-
-        See Also
-        --------
-        hardmask
-
-        """
-        self._hardmask = False
-        return self
-
-    hardmask = property(fget=lambda self: self._hardmask,
-                        doc="Hardness of the mask")
-
-    def unshare_mask(self):
-        """
-        Copy the mask and set the sharedmask flag to False.
-
-        Whether the mask is shared between uncertain arrays can be seen from
-        the `sharedmask` property. `unshare_mask` ensures the mask is not shared.
-        A copy of the mask is only made if it was shared.
-
-        See Also
-        --------
-        sharedmask
-
-        """
-        if self._sharedmask:
-            self._mask = self._mask.copy()
-            self._sharedmask = False
-        return self
-
-    sharedmask = property(fget=lambda self: self._sharedmask,
-                          doc="Share status of the mask (read-only).")
-
-    def shrink_mask(self):
-        """
-        Reduce a mask to nomask when possible.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> x = np.ma.array([[1,2 ], [3, 4]], mask=[0]*4)
-        >>> x.mask
-        array([[False, False],
-               [False, False]], dtype=bool)
-        >>> x.shrink_mask()
-        >>> x.mask
-        False
-
-        """
-        m = self._mask
-        if m.ndim and not m.any():
-            self._mask = nomask
-        return self
-
     baseclass = property(fget=lambda self: self._baseclass,
                          doc="Class of the underlying data (read-only).")
 
@@ -3296,7 +2885,7 @@ class UncertainArray(ndarray):
 
     def _get_flat(self):
         "Return a flat iterator."
-        return MaskedIterator(self)
+        return UncertainIterator(self)
 
     def _set_flat(self, value):
         "Set a flattened version of self to value."
@@ -3305,186 +2894,6 @@ class UncertainArray(ndarray):
 
     flat = property(fget=_get_flat, fset=_set_flat,
                     doc="Flat version of the array.")
-
-    def get_fill_value(self):
-        """
-        Return the filling value of the uncertain array.
-
-        Returns
-        -------
-        fill_value : scalar
-            The filling value.
-
-        Examples
-        --------
-        >>> for dt in [np.int32, np.int64, np.float64, np.complex128]:
-        ...     np.ma.array([0, 1], dtype=dt).get_fill_value()
-        ...
-        999999
-        999999
-        1e+20
-        (1e+20+0j)
-
-        >>> x = np.ma.array([0, 1.], fill_value=-np.inf)
-        >>> x.get_fill_value()
-        -inf
-
-        """
-        if self._fill_value is None:
-            self._fill_value = _check_fill_value(None, self.dtype)
-
-        # Temporary workaround to account for the fact that str and bytes
-        # scalars cannot be indexed with (), whereas all other numpy
-        # scalars can. See issues #7259 and #7267.
-        # The if-block can be removed after #7267 has been fixed.
-        if isinstance(self._fill_value, ndarray):
-            return self._fill_value[()]
-        return self._fill_value
-
-    def set_fill_value(self, value=None):
-        """
-        Set the filling value of the uncertain array.
-
-        Parameters
-        ----------
-        value : scalar, optional
-            The new filling value. Default is None, in which case a default
-            based on the data type is used.
-
-        See Also
-        --------
-        ma.set_fill_value : Equivalent function.
-
-        Examples
-        --------
-        >>> x = np.ma.array([0, 1.], fill_value=-np.inf)
-        >>> x.fill_value
-        -inf
-        >>> x.set_fill_value(np.pi)
-        >>> x.fill_value
-        3.1415926535897931
-
-        Reset to default:
-
-        >>> x.set_fill_value()
-        >>> x.fill_value
-        1e+20
-
-        """
-        target = _check_fill_value(value, self.dtype)
-        _fill_value = self._fill_value
-        if _fill_value is None:
-            # Create the attribute if it was undefined
-            self._fill_value = target
-        else:
-            # Don't overwrite the attribute, just fill it (for propagation)
-            _fill_value[()] = target
-
-    fill_value = property(fget=get_fill_value, fset=set_fill_value,
-                          doc="Filling value.")
-
-    def filled(self, fill_value=None):
-        """
-        Return a copy of self, with uncertain values filled with a given value.
-        **However**, if there are no uncertain values to fill, self will be
-        returned instead as an ndarray.
-
-        Parameters
-        ----------
-        fill_value : scalar, optional
-            The value to use for invalid entries (None by default).
-            If None, the `fill_value` attribute of the array is used instead.
-
-        Returns
-        -------
-        filled_array : ndarray
-            A copy of ``self`` with invalid entries replaced by *fill_value*
-            (be it the function argument or the attribute of ``self``), or
-            ``self`` itself as an ndarray if there are no invalid entries to
-            be replaced.
-
-        Notes
-        -----
-        The result is **not** a UncertainArray!
-
-        Examples
-        --------
-        >>> x = np.ma.array([1,2,3,4,5], mask=[0,0,1,0,1], fill_value=-999)
-        >>> x.filled()
-        array([1, 2, -999, 4, -999])
-        >>> type(x.filled())
-        <type 'numpy.ndarray'>
-
-        Subclassing is preserved. This means that if the data part of the uncertain
-        array is a matrix, `filled` returns a matrix:
-
-        >>> x = np.ma.array(np.matrix([[1, 2], [3, 4]]), mask=[[0, 1], [1, 0]])
-        >>> x.filled()
-        matrix([[     1, 999999],
-                [999999,      4]])
-
-        """
-        m = self._mask
-        if m is nomask:
-            return self._data
-
-        if fill_value is None:
-            fill_value = self.fill_value
-        else:
-            fill_value = _check_fill_value(fill_value, self.dtype)
-
-        if self is uncertain_singleton:
-            return np.asanyarray(fill_value)
-
-        if m.dtype.names:
-            result = self._data.copy('K')
-            _recursive_filled(result, self._mask, fill_value)
-        elif not m.any():
-            return self._data
-        else:
-            result = self._data.copy('K')
-            try:
-                np.copyto(result, fill_value, where=m)
-            except (TypeError, AttributeError):
-                fill_value = narray(fill_value, dtype=object)
-                d = result.astype(object)
-                result = np.choose(m, (d, fill_value))
-            except IndexError:
-                # ok, if scalar
-                if self._data.shape:
-                    raise
-                elif m:
-                    result = np.array(fill_value, dtype=self.dtype)
-                else:
-                    result = self._data
-        return result
-
-    def compressed(self):
-        """
-        Return all the non-uncertain data as a 1-D array.
-
-        Returns
-        -------
-        data : ndarray
-            A new `ndarray` holding the non-uncertain data is returned.
-
-        Notes
-        -----
-        The result is **not** a UncertainArray!
-
-        Examples
-        --------
-        >>> x = np.ma.array(np.arange(5), mask=[0]*2 + [1]*3)
-        >>> x.compressed()
-        array([0, 1])
-        >>> type(x.compressed())
-        <type 'numpy.ndarray'>
-
-        """
-        data = ndarray.ravel(self._data)
-        if self._mask is not nomask:
-            data = data.compress(np.logical_not(ndarray.ravel(self._mask)))
-        return data
 
 
     def __str__(self):
@@ -5598,147 +5007,6 @@ def _mareconstruct(subtype, baseclass, baseshape, basetype,):
     return subtype.__new__(subtype, _data, mask=_mask, dtype=basetype,)
 
 
-class mvoid(UncertainArray):
-    """
-    Fake a 'void' object to use for uncertain array with structured dtypes.
-    """
-
-    def __new__(self, data, mask=nomask, dtype=None, fill_value=None,
-                hardmask=False, copy=False, subok=True):
-        _data = np.array(data, copy=copy, subok=subok, dtype=dtype)
-        _data = _data.view(self)
-        _data._hardmask = hardmask
-        if mask is not nomask:
-            if isinstance(mask, np.void):
-                _data._mask = mask
-            else:
-                try:
-                    # Mask is already a 0D array
-                    _data._mask = np.void(mask)
-                except TypeError:
-                    # Transform the mask to a void
-                    mdtype = make_mask_descr(dtype)
-                    _data._mask = np.array(mask, dtype=mdtype)[()]
-        if fill_value is not None:
-            _data.fill_value = fill_value
-        return _data
-
-    def _get_data(self):
-        # Make sure that the _data part is a np.void
-        return self.view(ndarray)[()]
-
-    _data = property(fget=_get_data)
-
-    def __getitem__(self, indx):
-        """
-        Get the index.
-
-        """
-        m = self._mask
-        if isinstance(m[indx], ndarray):
-            # Can happen when indx is a multi-dimensional field:
-            # A = ma.uncertain_array(data=[([0,1],)], mask=[([True,
-            #                     False],)], dtype=[("A", ">i2", (2,))])
-            # x = A[0]; y = x["A"]; then y.mask["A"].size==2
-            # and we can not say uncertain/ununcertain.
-            # The result is no longer mvoid!
-            # See also issue #6724.
-            return uncertain_array(
-                data=self._data[indx], mask=m[indx],
-                fill_value=self._fill_value[indx],
-                hard_mask=self._hardmask)
-        if m is not nomask and m[indx]:
-            return uncertain
-        return self._data[indx]
-
-    def __setitem__(self, indx, value):
-        self._data[indx] = value
-        if self._hardmask:
-            self._mask[indx] |= getattr(value, "_mask", False)
-        else:
-            self._mask[indx] = getattr(value, "_mask", False)
-
-    def __str__(self):
-        m = self._mask
-        if m is nomask:
-            return self._data.__str__()
-        printopt = uncertain_print_option
-        rdtype = _recursive_make_descr(self._data.dtype, "O")
-
-        # temporary hack to fix gh-7493. A more permanent fix
-        # is proposed in gh-6053, after which the next two
-        # lines should be changed to
-        # res = np.array([self._data], dtype=rdtype)
-        res = np.empty(1, rdtype)
-        res[:1] = self._data
-
-        _recursive_printoption(res, self._mask, printopt)
-        return str(res[0])
-
-    __repr__ = __str__
-
-    def __iter__(self):
-        "Defines an iterator for mvoid"
-        (_data, _mask) = (self._data, self._mask)
-        if _mask is nomask:
-            for d in _data:
-                yield d
-        else:
-            for (d, m) in zip(_data, _mask):
-                if m:
-                    yield uncertain
-                else:
-                    yield d
-
-    def __len__(self):
-        return self._data.__len__()
-
-    def filled(self, fill_value=None):
-        """
-        Return a copy with uncertain fields filled with a given value.
-
-        Parameters
-        ----------
-        fill_value : scalar, optional
-            The value to use for invalid entries (None by default).
-            If None, the `fill_value` attribute is used instead.
-
-        Returns
-        -------
-        filled_void
-            A `np.void` object
-
-        See Also
-        --------
-        UncertainArray.filled
-
-        """
-        return asarray(self).filled(fill_value)[()]
-
-    def tolist(self):
-        """
-    Transforms the mvoid object into a tuple.
-
-    Masked fields are replaced by None.
-
-    Returns
-    -------
-    returned_tuple
-        Tuple of fields
-        """
-        _mask = self._mask
-        if _mask is nomask:
-            return self._data.tolist()
-        result = []
-        for (d, m) in zip(self._data, self._mask):
-            if m:
-                result.append(None)
-            else:
-                # .item() makes sure we return a standard Python object
-                result.append(d.item())
-        return tuple(result)
-
-
 ##############################################################################
 #                                Shortcuts                                   #
 ##############################################################################
@@ -6748,99 +6016,6 @@ def round_(a, decimals=0, out=None):
             out._mask = getmask(a)
         return out
 round = round_
-
-
-# Needed by dot, so move here from extras.py. It will still be exported
-# from extras.py for compatibility.
-def mask_rowcols(a, axis=None):
-    """
-    Mask rows and/or columns of a 2D array that contain uncertain values.
-
-    Mask whole rows and/or columns of a 2D array that contain
-    uncertain values.  The masking behavior is selected using the
-    `axis` parameter.
-
-      - If `axis` is None, rows *and* columns are uncertain.
-      - If `axis` is 0, only rows are uncertain.
-      - If `axis` is 1 or -1, only columns are uncertain.
-
-    Parameters
-    ----------
-    a : array_like, UncertainArray
-        The array to mask.  If not a UncertainArray instance (or if no array
-        elements are uncertain).  The result is a UncertainArray with `mask` set
-        to `nomask` (False). Must be a 2D array.
-    axis : int, optional
-        Axis along which to perform the operation. If None, applies to a
-        flattened version of the array.
-
-    Returns
-    -------
-    a : UncertainArray
-        A modified version of the input array, uncertain depending on the value
-        of the `axis` parameter.
-
-    Raises
-    ------
-    NotImplementedError
-        If input array `a` is not 2D.
-
-    See Also
-    --------
-    mask_rows : Mask rows of a 2D array that contain uncertain values.
-    mask_cols : Mask cols of a 2D array that contain uncertain values.
-    uncertain_where : Mask where a condition is met.
-
-    Notes
-    -----
-    The input array's mask is modified by this function.
-
-    Examples
-    --------
-    >>> import numpy.ma as ma
-    >>> a = np.zeros((3, 3), dtype=np.int)
-    >>> a[1, 1] = 1
-    >>> a
-    array([[0, 0, 0],
-           [0, 1, 0],
-           [0, 0, 0]])
-    >>> a = ma.uncertain_equal(a, 1)
-    >>> a
-    uncertain_array(data =
-     [[0 0 0]
-     [0 -- 0]
-     [0 0 0]],
-          mask =
-     [[False False False]
-     [False  True False]
-     [False False False]],
-          fill_value=999999)
-    >>> ma.mask_rowcols(a)
-    uncertain_array(data =
-     [[0 -- 0]
-     [-- -- --]
-     [0 -- 0]],
-          mask =
-     [[False  True False]
-     [ True  True  True]
-     [False  True False]],
-          fill_value=999999)
-
-    """
-    a = array(a, subok=False)
-    if a.ndim != 2:
-        raise NotImplementedError("mask_rowcols works for 2D arrays only.")
-    m = getmask(a)
-    # Nothing is uncertain: return a
-    if m is nomask or not m.any():
-        return a
-    uncertainval = m.nonzero()
-    a._mask = a._mask.copy()
-    if not axis:
-        a[np.unique(uncertainval[0])] = uncertain
-    if axis in [None, 1, -1]:
-        a[:, np.unique(uncertainval[1])] = uncertain
-    return a
 
 
 # Include uncertain dot here to avoid import problems in getting it from

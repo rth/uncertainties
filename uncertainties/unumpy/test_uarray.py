@@ -27,7 +27,8 @@ from numpy.ma.testutils import (
 
 from uncertainties.unumpy.core import uarray
 from uncertainties.unumpy.core2 import (UncertainArray, uncertain,
-         uncertain_array)
+         uncertain_array, isUncertainArray)
+from unittest.case import SkipTest
 #from numpy.ma.core import (
 #    MAError, MaskError, MaskType, UncertainArray, abs, absolute, add, all,
 #    allclose, allequal, alltrue, angle, anom, arange, arccos, arccosh, arctan2,
@@ -60,17 +61,17 @@ class TestUncertainArray(TestCase):
         a10 = 10.
         m1 = np.array([1, 0, 0, 0, 0, 0, 1.5, 0, 0, 0, 0, 0])
         m2 = np.array([0, 0, 3, 0, 0, 6, 1, 0, 0, 0, 0, 1])
-        xm = uarray(x, m1, dtype='uarray')
-        ym = uarray(y, m2, dtype='uarray')
+        xm = uncertain_array(x, m1)
+        ym = uncertain_array(y, m2)
         z = np.array([-.5, 0., .5, .8])
-        zm = uarray(z, [0, 1, 0, 0], dtype='uarray')
+        zm = uncertain_array(z, [0, 1, 0, 0])
         xf = np.where(m1, 1e+20, x)
         self.d = (x, y, a10, m1, m2, xm, ym, z, zm, xf)
 
     def test_basicattributes(self):
         # Tests some basic array attributes.
-        a = uarray([1, 3, 2])
-        b = uarray([1, 3, 2], [1, 0, 1])
+        a = uncertain_array([1, 3, 2])
+        b = uncertain_array([1, 3, 2], [1, 0, 1])
         assert_equal(a.ndim, 1)
         assert_equal(b.ndim, 1)
         assert_equal(a.size, 3)
@@ -80,7 +81,8 @@ class TestUncertainArray(TestCase):
 
     def test_basic0d(self):
         # Checks masking a scalar
-        x = uarray(0)
+        raise SkipTest
+        x = uncertain_array(0)
         assert_equal(str(x), '0')
 
     def test_basic1d(self):
@@ -88,17 +90,13 @@ class TestUncertainArray(TestCase):
         (x, y, a10, m1, m2, xm, ym, z, zm, xf) = self.d
         self.assertTrue(not isUncertainArray(x))
         self.assertTrue(isUncertainArray(xm))
-        self.assertTrue((xm - ym).filled(0).any())
-        fail_if_equal(xm.mask.astype(int), ym.mask.astype(int))
         s = x.shape
         assert_equal(np.shape(xm), s)
         assert_equal(xm.shape, s)
         assert_equal(xm.dtype, x.dtype)
         assert_equal(zm.dtype, z.dtype)
         assert_equal(xm.size, reduce(lambda x, y:x * y, s))
-        assert_equal(count(xm), len(m1) - reduce(lambda x, y:x + y, m1))
         assert_array_equal(xm, xf)
-        assert_array_equal(filled(xm, 1.e20), xf)
         assert_array_equal(x, xm)
 
     def test_basic2d(self):
@@ -113,15 +111,13 @@ class TestUncertainArray(TestCase):
 
             self.assertTrue(not isUncertainArray(x))
             self.assertTrue(isUncertainArray(xm))
-            assert_equal(shape(xm), s)
             assert_equal(xm.shape, s)
             assert_equal(xm.size, reduce(lambda x, y:x * y, s))
-            assert_equal(count(xm), len(m1) - reduce(lambda x, y:x + y, m1))
             assert_equal(xm, xf)
-            assert_equal(filled(xm, 1.e20), xf)
             assert_equal(x, xm)
 
     def test_concatenate_basic(self):
+        raise SkipTest
         # Tests concatenations.
         (x, y, a10, m1, m2, xm, ym, z, zm, xf) = self.d
         # basic concatenation
@@ -131,6 +127,7 @@ class TestUncertainArray(TestCase):
         assert_equal(np.concatenate((x, y, x)), concatenate((x, ym, x)))
 
     def test_concatenate_alongaxis(self):
+        raise SkipTest
         # Tests concatenations.
         (x, y, a10, m1, m2, xm, ym, z, zm, xf) = self.d
         # Concatenation along an axis
@@ -152,6 +149,7 @@ class TestUncertainArray(TestCase):
         assert_array_equal(z.mask, [False, True, False, False])
 
     def test_concatenate_flexible(self):
+        raise SkipTest
         # Tests the concatenation on flexible arrays.
         data = uncertain_array(list(zip(np.random.rand(10),
                                      np.arange(10))),
@@ -163,6 +161,9 @@ class TestUncertainArray(TestCase):
     def test_creation_ndmin(self):
         # Check the use of ndmin
         x = uncertain_array([1, 2, 3], [1, 0, 0], ndmin=2)
+        print(x._data, x._mask)
+        print(x._std)
+        assert False # why x has an attribute _mask?!
         assert_equal(x.shape, (1, 3))
         assert_equal(x._data, [[1, 2, 3]])
         assert_equal(x._mask, [[1, 0, 0]])
@@ -175,26 +176,6 @@ class TestUncertainArray(TestCase):
         assert_equal(x.shape, x._mask.shape)
         assert_equal(xx.shape, xx._mask.shape)
 
-    def test_creation_maskcreation(self):
-        # Tests how masks are initialized at the creation of Uncertainarrays.
-        data = np.arange(24, dtype=float)
-        data[[3, 6, 15]] = uncertain
-        dma_1 = UncertainArray(data)
-        assert_equal(dma_1.mask, data.mask)
-        dma_2 = UncertainArray(dma_1)
-        assert_equal(dma_2.mask, dma_1.mask)
-        dma_3 = UncertainArray(dma_1, [1, 0, 0, 0] * 6)
-        fail_if_equal(dma_3.mask, dma_1.mask)
-
-        x = uncertain_array([1, 2, 3])
-        assert_equal(x._mask, [True, True, True])
-        x = uncertain_array([1, 2, 3])
-        assert_equal(x._mask, [False, False, False])
-        y = uncertain_array([1, 2, 3], x._mask, copy=False)
-        assert_(np.may_share_memory(x.mask, y.mask))
-        y = uncertain_array([1, 2, 3], x._mask, copy=True)
-        assert_(not np.may_share_memory(x.mask, y.mask))
-
     def test_creation_with_list_of_uncertainarrays(self):
         # Tests creating a uncertain array from a list of uncertain arrays.
         x = uncertain_array(np.arange(5), [1, 0, 0, 0, 0])
@@ -206,12 +187,6 @@ class TestUncertainArray(TestCase):
         data = uncertain_array((x, x[::-1]))
         assert_equal(data, [[0, 1, 2, 3, 4], [4, 3, 2, 1, 0]])
         self.assertTrue(data.mask is nomask)
-
-    def test_creation_from_ndarray_with_padding(self):
-        x = np.array([('A', 0)], dtype={'names':['f0','f1'],
-                                        'formats':['S4','i8'],
-                                        'offsets':[0,8]})
-        data = uncertain_array(x) # used to fail due to 'V' padding field in x.dtype.descr
 
     def test_asarray(self):
         (x, y, a10, m1, m2, xm, ym, z, zm, xf) = self.d
@@ -476,14 +451,6 @@ class TestUncertainArray(TestCase):
         assert_equal(mc_pickled._mask, mc._mask)
         assert_equal(mc_pickled._data, mc._data)
 
-    def test_pickling_wstructured(self):
-        # Tests pickling w/ structured array
-        a = uncertain_array([(1, 1.), (2, 2.)], [(0, 0), (0, 1)],
-                  dtype=[('a', int), ('b', float)])
-        a_pickled = pickle.loads(a.dumps())
-        assert_equal(a_pickled._mask, a._mask)
-        assert_equal(a_pickled, a)
-
     def test_pickling_keepalignment(self):
         # Tests pickling w/ F_CONTIGUOUS arrays
         a = np.arange(10)
@@ -599,143 +566,6 @@ class TestUncertainArray(TestCase):
         control = "(0, [[--, 0.0, --], [0.0, 0.0, --]], 0.0)"
         assert_equal(str(t_2d0), control)
 
-
-    def test_flatten_structured_array(self):
-        # Test flatten_structured_array on arrays
-        # On ndarray
-        ndtype = [('a', int), ('b', float)]
-        a = np.array([(1, 1), (2, 2)], dtype=ndtype)
-        test = flatten_structured_array(a)
-        control = np.array([[1., 1.], [2., 2.]], dtype=np.float)
-        assert_equal(test, control)
-        assert_equal(test.dtype, control.dtype)
-        # On uncertain_array
-        a = uncertain_array([(1, 1), (2, 2)], [(0, 1), (1, 0)], dtype=ndtype)
-        test = flatten_structured_array(a)
-        control = uncertain_array([[1., 1.], [2., 2.]],
-                        [[0, 1], [1, 0]], dtype=np.float)
-        assert_equal(test, control)
-        assert_equal(test.dtype, control.dtype)
-        assert_equal(test.mask, control.mask)
-        # On uncertain array with nested structure
-        ndtype = [('a', int), ('b', [('ba', int), ('bb', float)])]
-        a = uncertain_array([(1, (1, 1.1)), (2, (2, 2.2))],
-                  [(0, (1, 0)), (1, (0, 1))], dtype=ndtype)
-        test = flatten_structured_array(a)
-        control = uncertain_array([[1., 1., 1.1], [2., 2., 2.2]],
-                        [[0, 1, 0], [1, 0, 1]], dtype=np.float)
-        assert_equal(test, control)
-        assert_equal(test.dtype, control.dtype)
-        assert_equal(test.mask, control.mask)
-        # Keeping the initial shape
-        ndtype = [('a', int), ('b', float)]
-        a = np.array([[(1, 1), ], [(2, 2), ]], dtype=ndtype)
-        test = flatten_structured_array(a)
-        control = np.array([[[1., 1.], ], [[2., 2.], ]], dtype=np.float)
-        assert_equal(test, control)
-        assert_equal(test.dtype, control.dtype)
-
-    def test_void0d(self):
-        # Test creating a mvoid object
-        ndtype = [('a', int), ('b', int)]
-        a = np.array([(1, 2,)], dtype=ndtype)[0]
-        f = mvoid(a)
-        assert_(isinstance(f, mvoid))
-
-        a = uncertain_array([(1, 2)], [(1, 0)], dtype=ndtype)[0]
-        assert_(isinstance(a, mvoid))
-
-        a = uncertain_array([(1, 2), (1, 2)], [(1, 0), (0, 0)], dtype=ndtype)
-        f = mvoid(a._data[0], a._mask[0])
-        assert_(isinstance(f, mvoid))
-
-    def test_mvoid_getitem(self):
-        # Test mvoid.__getitem__
-        ndtype = [('a', int), ('b', int)]
-        a = uncertain_array([(1, 2,), (3, 4)], [(0, 0), (1, 0)],
-                         dtype=ndtype)
-        # w/o mask
-        f = a[0]
-        self.assertTrue(isinstance(f, mvoid))
-        assert_equal((f[0], f['a']), (1, 1))
-        assert_equal(f['b'], 2)
-        # w/ mask
-        f = a[1]
-        self.assertTrue(isinstance(f, mvoid))
-        self.assertTrue(f[0] is uncertain)
-        self.assertTrue(f['a'] is uncertain)
-        assert_equal(f[1], 4)
-
-        # exotic dtype
-        A = uncertain_array(mean=[([0,1],)],
-                         std=[([True, False],)],
-                         dtype=[("A", ">i2", (2,))])
-        assert_equal(A[0]["A"], A["A"][0])
-        assert_equal(A[0]["A"], uncertain_array(mean=[0, 1],
-                         std=[True, False], dtype=">i2"))
-
-    def test_mvoid_iter(self):
-        # Test iteration on __getitem__
-        ndtype = [('a', int), ('b', int)]
-        a = uncertain_array([(1, 2,), (3, 4)], [(0, 0), (1, 0)],
-                         dtype=ndtype)
-        # w/o mask
-        assert_equal(list(a[0]), [1, 2])
-        # w/ mask
-        assert_equal(list(a[1]), [uncertain, 4])
-
-    def test_mvoid_print(self):
-        # Test printing a mvoid
-        mx = uncertain_array([(1, 1), (2, 2)], dtype=[('a', int), ('b', int)])
-        assert_equal(str(mx[0]), "(1, 1)")
-        mx['b'][0] = uncertain
-        ini_display = uncertain_print_option._display
-        uncertain_print_option.set_display("-X-")
-        try:
-            assert_equal(str(mx[0]), "(1, -X-)")
-            assert_equal(repr(mx[0]), "(1, -X-)")
-        finally:
-            uncertain_print_option.set_display(ini_display)
-
-        # also check if there are object datatypes (see gh-7493)
-        mx = uncertain_array([(1,), (2,)], dtype=[('a', 'O')])
-        assert_equal(str(mx[0]), "(1,)")
-
-    def test_mvoid_multidim_print(self):
-
-        # regression test for gh-6019
-        t_ma = uncertain_array(data = [([1, 2, 3],)],
-                            mask = [([False, True, False],)],
-                            dtype = [('a', '<i4', (3,))])
-        assert_(str(t_ma[0]) == "([1, --, 3],)")
-        assert_(repr(t_ma[0]) == "([1, --, 3],)")
-
-        # additional tests with structured arrays
-
-        t_2d = uncertain_array(data = [([[1, 2], [3,4]],)],
-                            mask = [([[False, True], [True, False]],)],
-                            dtype = [('a', '<i4', (2,2))])
-        assert_(str(t_2d[0]) == "([[1, --], [--, 4]],)")
-        assert_(repr(t_2d[0]) == "([[1, --], [--, 4]],)")
-
-        t_0d = uncertain_array(data = [(1,2)],
-                            mask = [(True,False)],
-                            dtype = [('a', '<i4'), ('b', '<i4')])
-        assert_(str(t_0d[0]) == "(--, 2)")
-        assert_(repr(t_0d[0]) == "(--, 2)")
-
-        t_2d = uncertain_array(data = [([[1, 2], [3,4]], 1)],
-                            mask = [([[False, True], [True, False]], False)],
-                            dtype = [('a', '<i4', (2,2)), ('b', float)])
-        assert_(str(t_2d[0]) == "([[1, --], [--, 4]], 1.0)")
-        assert_(repr(t_2d[0]) == "([[1, --], [--, 4]], 1.0)")
-
-        t_ne = uncertain_array(mean=[(1, (1, 1))],
-                            std=[(True, (True, False))],
-                            dtype = [('a', '<i4'), ('b', 'i4,i4')])
-        assert_(str(t_ne[0]) == "(--, (--, 1))")
-        assert_(repr(t_ne[0]) == "(--, (--, 1))")
-
     def test_object_with_array(self):
         mx1 = uncertain_array([1.], [True])
         mx2 = uncertain_array([1., 2.])
@@ -754,6 +584,7 @@ class TestUncertainArrayArithmetic(TestCase):
 
     def setUp(self):
         # Base data definition.
+        raise SkipTest
         x = np.array([1., 1., 1., -2., pi/2.0, 4., 5., -10., 10., 1., 2., 3.])
         y = np.array([5., 0., 3., 2., -1., -4., 0., -10., 10., 1., 0., 3.])
         a10 = 10.
@@ -1122,23 +953,6 @@ class TestUncertainArrayArithmetic(TestCase):
         assert_equal(test.data, control.data)
         assert_equal(test.mask, control.mask)
 
-    def test_noshrinking(self):
-        # Check that we don't shrink a mask when not wanted
-        # Binary operations
-        a = uncertain_array([1., 2., 3.], [False, False, False],
-                         shrink=False)
-        b = a + 1
-        assert_equal(b.mask, [0, 0, 0])
-        # In place binary operation
-        a += 1
-        assert_equal(a.mask, [0, 0, 0])
-        # Domained binary operation
-        b = a / 1.
-        assert_equal(b.mask, [0, 0, 0])
-        # In place binary operation
-        a /= 1.
-        assert_equal(a.mask, [0, 0, 0])
-
     def test_ufunc_nomask(self):
         # check the case ufuncs should set the mask to false
         m = uarray([1], dtype='uarray')
@@ -1217,38 +1031,6 @@ class TestUncertainArrayArithmetic(TestCase):
         #make sure broadcasting inside mean and var work
         assert_equal(m.mean(axis=0), [[2., 3.]])
         assert_equal(m.mean(axis=1), [[1.5], [3.5]])
-
-    def test_eq_on_structured(self):
-        # Test the equality of structured arrays
-        ndtype = [('A', int), ('B', int)]
-        a = uncertain_array([(1, 1), (2, 2)], [(0, 1), (0, 0)], dtype=ndtype)
-        test = (a == a)
-        assert_equal(test, [True, True])
-        assert_equal(test.mask, [False, False])
-        b = uncertain_array([(1, 1), (2, 2)], [(1, 0), (0, 0)], dtype=ndtype)
-        test = (a == b)
-        assert_equal(test, [False, True])
-        assert_equal(test.mask, [True, False])
-        b = uncertain_array([(1, 1), (2, 2)], [(0, 1), (1, 0)], dtype=ndtype)
-        test = (a == b)
-        assert_equal(test, [True, False])
-        assert_equal(test.mask, [False, False])
-
-    def test_ne_on_structured(self):
-        # Test the equality of structured arrays
-        ndtype = [('A', int), ('B', int)]
-        a = uncertain_array([(1, 1), (2, 2)], [(0, 1), (0, 0)], dtype=ndtype)
-        test = (a != a)
-        assert_equal(test, [False, False])
-        assert_equal(test.mask, [False, False])
-        b = uncertain_array([(1, 1), (2, 2)], [(1, 0), (0, 0)], dtype=ndtype)
-        test = (a != b)
-        assert_equal(test, [True, False])
-        assert_equal(test.mask, [True, False])
-        b = uncertain_array([(1, 1), (2, 2)], [(0, 1), (1, 0)], dtype=ndtype)
-        test = (a != b)
-        assert_equal(test, [False, True])
-        assert_equal(test.mask, [False, False])
 
     def test_eq_with_None(self):
         # Really, comparisons with None should not be done, but check them
@@ -1387,6 +1169,7 @@ class TestUfuncs(TestCase):
 
     def setUp(self):
         # Base data definition.
+        raise SkipTest
         self.d = (array([1.0, 0, -1, pi / 2] * 2, mask=[0, 1] + [0] * 6),
                   array([1.0, 0, -1, pi / 2] * 2, mask=[1, 0] + [0] * 6),)
         self.err_status = np.geterr()
@@ -1530,6 +1313,7 @@ class TestUncertainArrayInPlaceArithmetics(TestCase):
     # Test UncertainArray Arithmetics
 
     def setUp(self):
+        raise SkipTest
         x = np.arange(10)
         y = np.arange(10)
         xm = np.arange(10)
@@ -2030,6 +1814,7 @@ class TestUncertainArrayInPlaceArithmetics(TestCase):
 class TestUncertainArrayMethods(TestCase):
     # Test class for miscellaneous UncertainArrays methods.
     def setUp(self):
+        raise SkipTest
         # Base data definition.
         x = np.array([8.375, 7.545, 8.828, 8.5, 1.757, 5.928,
                       8.43, 7.78, 9.865, 5.878, 8.979, 4.732,
@@ -2633,6 +2418,7 @@ class TestUncertainArrayMethods(TestCase):
 class TestUncertainArrayMathMethods(TestCase):
 
     def setUp(self):
+        raise SkipTest
         # Base data definition.
         x = np.array([8.375, 7.545, 8.828, 8.5, 1.757, 5.928,
                       8.43, 7.78, 9.865, 5.878, 8.979, 4.732,
@@ -2861,6 +2647,7 @@ class TestUncertainArrayMathMethods(TestCase):
 class TestUncertainArrayMathMethodsComplex(TestCase):
     # Test class for miscellaneous UncertainArrays methods.
     def setUp(self):
+        raise SkipTest
         # Base data definition.
         x = np.array([8.375j, 7.545j, 8.828j, 8.5j, 1.757j, 5.928,
                       8.43, 7.78, 9.865, 5.878, 8.979, 4.732,
@@ -2904,6 +2691,7 @@ class TestUncertainArrayFunctions(TestCase):
     # Test class for miscellaneous functions.
 
     def setUp(self):
+        raise SkipTest
         x = np.array([1., 1., 1., -2., pi/2.0, 4., 5., -10., 10., 1., 2., 3.])
         y = np.array([5., 0., 3., 2., -1., -4., 0., -10., 10., 1., 0., 3.])
         m1 = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]
@@ -2960,15 +2748,6 @@ class TestUncertainArrayFunctions(TestCase):
             raise AssertionError("Should have failed...")
         test = uncertain_equal(a, 1)
         assert_equal(test.mask, [0, 1, 0, 0, 0, 0, 0, 0, 0, 0])
-
-    def test_uncertain_where_structured(self):
-        # test that uncertain_where on a structured array sets a structured
-        # mask (see issue #2972)
-        a = np.zeros(10, dtype=[("A", "<f2"), ("B", "<f4")])
-        am = np.ma.uncertain_where(a["A"] < 5, a)
-        assert_equal(am.mask.dtype.names, am.dtype.names)
-        assert_equal(am["A"],
-                    np.ma.uncertain_array(np.zeros(10), np.ones(10)))
 
     def test_uncertain_otherfunctions(self):
         assert_equal(uncertain_inside(list(range(5)), 1, 3),
@@ -3276,124 +3055,6 @@ class TestUncertainArrayFunctions(TestCase):
         self.assertTrue(c[0, 0] is uncertain)
         self.assertTrue(c.flags['C'])
 
-    def test_make_mask_descr(self):
-        # Test make_mask_descr
-        # Flexible
-        ntype = [('a', np.float), ('b', np.float)]
-        test = make_mask_descr(ntype)
-        assert_equal(test, [('a', np.bool), ('b', np.bool)])
-        # Standard w/ shape
-        ntype = (np.float, 2)
-        test = make_mask_descr(ntype)
-        assert_equal(test, (np.bool, 2))
-        # Standard standard
-        ntype = np.float
-        test = make_mask_descr(ntype)
-        assert_equal(test, np.dtype(np.bool))
-        # Nested
-        ntype = [('a', np.float), ('b', [('ba', np.float), ('bb', np.float)])]
-        test = make_mask_descr(ntype)
-        control = np.dtype([('a', 'b1'), ('b', [('ba', 'b1'), ('bb', 'b1')])])
-        assert_equal(test, control)
-        # Named+ shape
-        ntype = [('a', (np.float, 2))]
-        test = make_mask_descr(ntype)
-        assert_equal(test, np.dtype([('a', (np.bool, 2))]))
-        # 2 names
-        ntype = [(('A', 'a'), float)]
-        test = make_mask_descr(ntype)
-        assert_equal(test, np.dtype([(('A', 'a'), bool)]))
-
-    def test_make_mask(self):
-        # Test make_mask
-        # w/ a list as an input
-        mask = [0, 1]
-        test = make_mask(mask)
-        assert_equal(test.dtype, MaskType)
-        assert_equal(test, [0, 1])
-        # w/ a ndarray as an input
-        mask = np.array([0, 1], dtype=np.bool)
-        test = make_mask(mask)
-        assert_equal(test.dtype, MaskType)
-        assert_equal(test, [0, 1])
-        # w/ a flexible-type ndarray as an input - use default
-        mdtype = [('a', np.bool), ('b', np.bool)]
-        mask = np.array([(0, 0), (0, 1)], dtype=mdtype)
-        test = make_mask(mask)
-        assert_equal(test.dtype, MaskType)
-        assert_equal(test, [1, 1])
-        # w/ a flexible-type ndarray as an input - use input dtype
-        mdtype = [('a', np.bool), ('b', np.bool)]
-        mask = np.array([(0, 0), (0, 1)], dtype=mdtype)
-        test = make_mask(mask, dtype=mask.dtype)
-        assert_equal(test.dtype, mdtype)
-        assert_equal(test, mask)
-        # w/ a flexible-type ndarray as an input - use input dtype
-        mdtype = [('a', np.float), ('b', np.float)]
-        bdtype = [('a', np.bool), ('b', np.bool)]
-        mask = np.array([(0, 0), (0, 1)], dtype=mdtype)
-        test = make_mask(mask, dtype=mask.dtype)
-        assert_equal(test.dtype, bdtype)
-        assert_equal(test, np.array([(0, 0), (0, 1)], dtype=bdtype))
-
-        # test that nomask is returned when m is nomask.
-        bools = [True, False]
-        dtypes = [MaskType, np.float]
-        msgformat = 'copy=%s, shrink=%s, dtype=%s'
-        for cpy, shr, dt in itertools.product(bools, bools, dtypes):
-            res = make_mask(nomask, copy=cpy, shrink=shr, dtype=dt)
-            assert_(res is nomask, msgformat % (cpy, shr, dt))
-
-
-    def test_mask_or(self):
-        # Initialize
-        mtype = [('a', np.bool), ('b', np.bool)]
-        mask = np.array([(0, 0), (0, 1), (1, 0), (0, 0)], dtype=mtype)
-        # Test using nomask as input
-        test = mask_or(mask, nomask)
-        assert_equal(test, mask)
-        test = mask_or(nomask, mask)
-        assert_equal(test, mask)
-        # Using False as input
-        test = mask_or(mask, False)
-        assert_equal(test, mask)
-        # Using another array w / the same dtype
-        other = np.array([(0, 1), (0, 1), (0, 1), (0, 1)], dtype=mtype)
-        test = mask_or(mask, other)
-        control = np.array([(0, 1), (0, 1), (1, 1), (0, 1)], dtype=mtype)
-        assert_equal(test, control)
-        # Using another array w / a different dtype
-        othertype = [('A', np.bool), ('B', np.bool)]
-        other = np.array([(0, 1), (0, 1), (0, 1), (0, 1)], dtype=othertype)
-        try:
-            test = mask_or(mask, other)
-        except ValueError:
-            pass
-        # Using nested arrays
-        dtype = [('a', np.bool), ('b', [('ba', np.bool), ('bb', np.bool)])]
-        amask = np.array([(0, (1, 0)), (0, (1, 0))], dtype=dtype)
-        bmask = np.array([(1, (0, 1)), (0, (0, 0))], dtype=dtype)
-        cntrl = np.array([(1, (1, 1)), (0, (1, 0))], dtype=dtype)
-        assert_equal(mask_or(amask, bmask), cntrl)
-
-    def test_flatten_mask(self):
-        # Tests flatten mask
-        # Standard dtype
-        mask = np.array([0, 0, 1], dtype=np.bool)
-        assert_equal(flatten_mask(mask), mask)
-        # Flexible dtype
-        mask = np.array([(0, 0), (0, 1)], dtype=[('a', bool), ('b', bool)])
-        test = flatten_mask(mask)
-        control = np.array([0, 0, 0, 1], dtype=bool)
-        assert_equal(test, control)
-
-        mdtype = [('a', bool), ('b', [('ba', bool), ('bb', bool)])]
-        data = [(0, (0, 0)), (0, (0, 1))]
-        mask = np.array(data, dtype=mdtype)
-        test = flatten_mask(mask)
-        control = np.array([0, 0, 0, 0, 0, 1], dtype=bool)
-        assert_equal(test, control)
-
     def test_on_ndarray(self):
         # Test functions on ndarrays
         a = np.array([1, 2, 3, 4])
@@ -3407,6 +3068,7 @@ class TestUncertainArrayFunctions(TestCase):
 class TestUncertainFields(TestCase):
 
     def setUp(self):
+        raise SkipTest
         ilist = [1, 2, 3, 4, 5]
         flist = [1.1, 2.2, 3.3, 4.4, 5.5]
         slist = ['one', 'two', 'three', 'four', 'five']
@@ -3561,6 +3223,7 @@ class TestUncertainFields(TestCase):
 class TestUncertainView(TestCase):
 
     def setUp(self):
+        raise SkipTest
         iterator = list(zip(np.arange(10), np.random.rand(10)))
         data = np.array(iterator)
         a = uncertain_array(iterator, dtype=[('a', float), ('b', float)])
